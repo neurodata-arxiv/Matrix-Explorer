@@ -7,13 +7,12 @@ library(grid)
 library(fastcluster)
 library(ggdendro)
 library(gtable)
-library(tsne)
 
 options(shiny.maxRequestSize = 9*1024^2)
 
 shinyServer(function(input, output) {
 	ranges <- reactiveValues(y = NULL)
-	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
+	show_outliers <- reactiveValues(Names = NULL, Distances = NULL)
 	
 	my_data <- reactive({
 		validate(need(input$data, message = FALSE)) 
@@ -52,16 +51,13 @@ shinyServer(function(input, output) {
 		result <- apply(result,2,rank)
 	}
 	
+	temp <- melt(as.matrix(result))
+	temp$X1 <- factor(temp$X1, levels = row.names(result))
+	temp$lev <- cut(temp$value,bins)
+
 	dd.col <- as.dendrogram(hclust(dist(as.matrix(result))))
 	dd.row <- as.dendrogram(hclust(dist(t(as.matrix(result)))))
 
-	col.ord <- order.dendrogram(dd.col)
-	row.ord <- order.dendrogram(dd.row)
-	
-	temp <- melt(as.matrix(result[col.ord, row.ord]))
-	temp$X1 <- factor(temp$X1, levels = row.names(result)[col.ord])
-	temp$lev <- cut(temp$value,bins)
-	
 	ddata_x <- dendro_data(dd.row)
 	ddata_y <- dendro_data(dd.col)
 		
@@ -125,7 +121,6 @@ shinyServer(function(input, output) {
 	df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier)
 	
 	
-	show_outliers$Rows <<- df_outliers[,1][outlier]
 	show_outliers$Names <<- row_names[df_outliers[,3]]
 	show_outliers$Distances <<- mahalanobis_dist[df_outliers[,3]]
 	
@@ -219,42 +214,18 @@ shinyServer(function(input, output) {
 	 }
   }
   
-  Clustering <- function(data,num,type){
+  Clustering <- function(data,num){
 	clust <- hclust(dist(data), method = "complete")
 
 	memb <- cutree(clust, k = num)
 	
-	if (type == "PCA") {
-		clean_data <- data
-	} else if (type == "Robust-PCA") {
-		if (length(show_outliers$Rows) == 0){
-			clean_data <- data
-		} else{
-			clean_data <- data[-show_outliers$Rows]
-		}
-	} else if (type == "Scaled PCA") {
-		clean_data <- scale(data)
-	} else if (type == "Scaled Robust-PCA"){
-		if (length(show_outliers$Rows) == 0){
-			clean_data <- scale(data)
-		} else{
-			clean_data <- scale(data[-show_outliers$Rows])
-		}
-	} else if (type == "t-SNE"){
-		clean_data <- data
-	}
+	fit <- prcomp(data, center=TRUE, scale = TRUE)
 	
-	if (type == "t-SNE"){
-		fit <- as.data.frame(tsne(data, epoch_callback = ecb, perplexity=50))
-		df <- data.frame(x = fit$V1, y = fit$V2, z = memb)
-	} else {
-		fit <- prcomp(clean_data, center=TRUE, scale = FALSE)
-		df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = memb)
-	}
+	df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = memb)
 	
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
-	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
+	p <- p + geom_point(size = 5) + xlab('First Principal Component') + ylab('Second Principle Component') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
    }
   
   output$MarginalPlot <- renderPlot({
@@ -286,7 +257,7 @@ shinyServer(function(input, output) {
   })
   
   output$Clust <- renderPlot({
-	p <- Clustering(my_data(),input$num_clust,input$pca_type)
+	p <- Clustering(my_data(),input$num_clust)
 	print(p)
   })
   

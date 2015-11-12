@@ -90,29 +90,12 @@ shinyUI(navbarPage("Data Analytics", id = "tabs",
   )
   ),  
   tabPanel("Clustering", value = "C",
-  fluidPage(
-	plotOutput("Clust"),
-  fluidRow(
-    column(4,
-      wellPanel(
-		sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
-		selectInput(inputId = "pca_type",
-			label = "Select Dimensionality Reduction Technique",
-			list("PCA", "Robust-PCA", "Scaled PCA","Scaled Robust-PCA","t-SNE")
-			) 
-      )       
-    ),
-    column(8,
-      plotOutput("Scree")
-    )
-  )
-  )
-	# sidebarPanel(
-		# plotOutput("Scree")
-	# ),
-  # mainPanel(
-  	# sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
-    # plotOutput("Clust")	
-	# )
-  )
+	sidebarPanel(
+		plotOutput("Scree")
+	),
+  mainPanel(
+  	sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
+    plotOutput("Clust")	
+	)
+   )
 ))
