@@ -271,6 +271,9 @@ shinyServer(function(input, output) {
   
 	num_vars <- dim(clean_data)[2]
   
+  
+	output_mean <- vector()
+	output_se <- vector()
 	if (input$mean_pp_type == "raw_mean"){
 		for (i in c(1:num_vars)){
 			output_mean[i] <- mean(clean_data[,i],na.rm = TRUE)	
