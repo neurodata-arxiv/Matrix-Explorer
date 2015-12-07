@@ -1,4 +1,3 @@
-library(xlsx)
 library(RColorBrewer)
 
 DataScrubbing <- function(file_name) 

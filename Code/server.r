@@ -2,12 +2,12 @@ library(shiny)
 library(ggplot2)
 library(robustbase)
 library(reshape)
-library(xlsx)
 library(grid)
 library(fastcluster)
 library(ggdendro)
 library(gtable)
 library(tsne)
+library(RColorBrewer)
 
 options(shiny.maxRequestSize = 9*1024^2)
 
