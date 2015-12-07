@@ -24,6 +24,68 @@ shinyServer(function(input, output) {
 		data[,1] <- NULL
 		data
 	})
+
+
+	data_pp <- reactive({
+		if(input$rmout == TRUE){
+			if (length(show_outliers$Rows) == 0){
+				clean_data <- my_data()
+			} else{
+				clean_data <- my_data()
+				clean_data <- clean_data[-show_outliers$Rows]
+			}
+		} else{
+				clean_data <- my_data()
+		}
+	
+		if (input$clust_pp_type == "raw_pp"){
+		} else if (input$clust_pp_type == "zscores_pp"){		
+			clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
+		} else if (input$clust_pp_type == "quantiles_pp"){
+			clean_data <- apply(clean_data,2,rank)
+			clean_data <- clean_data / max(clean_data)
+		} else{
+			clean_data <- apply(clean_data,2,rank)
+		}
+		clean_data
+	})
+	
+	pca_comp <- reactive({	
+		fit <- prcomp(data_pp(), center=TRUE, scale = FALSE)
+		df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = clust())
+		rv <- fit[1]
+		list(df,rv)
+	})
+	
+	tsne_comp <- reactive({		
+		fit <- as.data.frame(tsne(data_pp(), perplexity=50))
+		df <- data.frame(x = fit$V1, y = fit$V2, z = clust())
+		rv <- NULL
+		list(df,rv)
+	})
+	
+	clust <- reactive({
+		memb <- cutree(hclust(dist(my_data()), method = "complete"), k = input$num_clust)
+	})
+	
+	Scree_Plot <- reactive({
+		if (input$embed_type == "PCA") {
+			result <- pca_comp()[[2]]
+		} else {
+			result <- tsne_comp()[[2]]
+		}
+
+		retained_variance <- cumsum(unlist(result)^2) /  max(cumsum(unlist(result)^2))
+	
+		if (length(retained_variance) == 0){
+			df <- data.frame(x = NULL,y = NULL)
+		} else{
+			df <- data.frame(x = c(1:length(retained_variance)), y = retained_variance)
+		}
+	
+		p <- ggplot(df, aes(x = x,y = y)) + xlab('Retained Dimensions') + ylab('Explained Variance') + ggtitle('Scree Plot')
+		p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45))	
+	})
 	
 	theme_none <- theme(
 		panel.grid.major = element_blank(),
@@ -125,9 +187,9 @@ shinyServer(function(input, output) {
 	df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier)
 	
 	
-	show_outliers$Rows <<- df_outliers[,1][outlier]
-	show_outliers$Names <<- row_names[df_outliers[,3]]
-	show_outliers$Distances <<- mahalanobis_dist[df_outliers[,3]]
+	show_outliers$Rows <- df_outliers[,1][outlier]
+	show_outliers$Names <- row.names(data)[df_outliers[,3]]
+	show_outliers$Distances <- mahalanobis_dist[df_outliers[,3]]
 	
 	
 	p <- ggplot(df_outliers,aes(x = x,y = y))
@@ -139,20 +201,32 @@ shinyServer(function(input, output) {
 	return(list(df_outliers,p))
   }
   
-  Scree_Plot <- function(data){
-	result <- prcomp(data, center = TRUE, scale = TRUE)
-	retained_variance <- cumsum(unlist(result[1])^2) /  max(cumsum(unlist(result[1])^2))
+  Correlation <- function(){
+	if(input$rmout_corr == TRUE){
+			if (length(show_outliers$Rows) == 0){
+				clean_data <- my_data()
+			} else{
+				clean_data <- my_data()
+				clean_data <- clean_data[-show_outliers$Rows]
+			}
+		} else{
+				clean_data <- my_data()
+	}
 	
-	df <- data.frame(x = c(1:dim(data)[2]), y = retained_variance)
-	
-	p <- ggplot(df, aes(x = x,y = y)) + xlab('Retained Dimensions') + ylab('Explained Variance') + ggtitle('Scree Plot')
-	p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45))	
-  }
+	if (input$corr_type == "raw_corr"){
+	} else if (input$corr_type == "zscores_corr"){		
+		clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
+	} else if (input$corr_type == "quantiles_corr"){
+		clean_data <- apply(clean_data,2,rank)
+		clean_data <- clean_data / max(clean_data)
+	} else{
+		clean_data <- apply(clean_data,2,rank)
+	}
   
-  Correlation <- function(data, type){
-	data_t <- data[,order(colnames(data))]
+  
+	data_t <- clean_data[,order(colnames(clean_data))]
 	
-	if (type == "p_corr") {
+	if (input$correlation_dropdown == "p_corr") {
 		result <- cor(data_t)
 
 		temp <- result
@@ -160,7 +234,7 @@ shinyServer(function(input, output) {
 		temp <- melt(temp)
 		temp <- na.omit(temp)
 	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = "steelblue", high = "red", mid = "violet", midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
+		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun(3)[1], high = color_fun(3)[2], mid = color_fun(3)[3], midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
 		base_size <- 14
 	
 		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Correlation Heatmap")
@@ -174,7 +248,7 @@ shinyServer(function(input, output) {
 		temp <- melt(temp)
 		temp <- na.omit(temp)
 	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = "steelblue", high = "red", mid = "violet", name = "Distance\nmatrix\n")
+		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun(3)[1], high = color_fun(3)[2], mid = color_fun(3)[3], name = "Distance\nmatrix\n")
 		base_size <- 14
 	
 		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Distance Matrix Heatmap")
@@ -183,78 +257,90 @@ shinyServer(function(input, output) {
 	}
   }
   
-  Mean_Vectors <- function(data, type){
-	 num_vars <- dim(data)[2]
-	
-	 output_mean <<- vector()
-	 output_se <<- vector()
-	 for (i in c(1:num_vars)){
-		name <- colnames(data)[i]
-		
-		output_mean[i] <<- mean(data[,i],na.rm = TRUE)	
-		output_se[i] <<- sd(data[,i],na.rm = TRUE) / sqrt(length(data[,3][!is.na(data[,3])]))
-	 }
-
-	 names_to_use <- colnames(data)
+  Mean_Vectors <- function(){
+	if(input$rmout_mean == TRUE){
+			if (length(show_outliers$Rows) == 0){
+				clean_data <- my_data()
+			} else{
+				clean_data <- my_data()
+				clean_data <- clean_data[-show_outliers$Rows]
+			}
+		} else{
+				clean_data <- my_data()
+	}
+  
+	num_vars <- dim(clean_data)[2]
+  
+	if (input$mean_pp_type == "raw_mean"){
+		for (i in c(1:num_vars)){
+			output_mean[i] <- mean(clean_data[,i],na.rm = TRUE)	
+			output_se[i] <- sd(clean_data[,i],na.rm = TRUE)# / sqrt(length(data[,i]))
+		}
+	} else{
+		output_mean <- colMedians(as.matrix(clean_data), na.rm = FALSE)
+		output_mean <- output_mean / apply(clean_data,2,mad)
+		output_se <- rep(0, num_vars)
+	}
 	 
-	 boxplot_data <- melt(data)
 	 
-	 R_score = colMedians(as.matrix(data), na.rm = FALSE)
-	 R_score <- R_score / apply(data,2,mad)
 	 
-	 df <- data.frame(names = names_to_use, means = output_mean, r_score = R_score)
+	names_to_use <- colnames(clean_data)	 
 	 
-	 if (type == "Raw Scatter"){
+	df <- data.frame(names = names_to_use, means = output_mean, se = output_se)
+	 
+	if (input$mean_type == "Scatter"){
 		p <- ggplot(df, aes(x = names, y = means))
 		p <- p + geom_point() + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Raw Column Means') + coord_cartesian(ylim = ranges$y)
-	 } else if(type == "Raw Scatter with error bars"){
-		limits <- aes(ymax = output_mean + output_se, ymin=output_mean - output_se)
+	} else if(input$mean_type== "Scatter with error bars"){
 		p <- ggplot(df, aes(x = names, y = means))
-		 p <- p + geom_point() + geom_errorbar(limits, width=0.3) + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Raw Column Means') + coord_cartesian(ylim = ranges$y)
-	 } else if(type == "Box Plot"){
+		p <- p + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Raw Column Means') + coord_cartesian(ylim = ranges$y)
+	} else if(input$mean_type == "Box Plot"){
+		boxplot_data <- melt(clean_data)
 		p <- ggplot(boxplot_data,aes(x = variable, y = value)) + geom_boxplot() + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Boxplots') + coord_cartesian(ylim = ranges$y)
-	 }  
-	 else{
-		p <- ggplot(df, aes(x = names, y = r_score)) + geom_point() + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('R-Scores') + coord_cartesian(ylim = ranges$y)
-	 }
+	}
   }
   
-  Clustering <- function(data,num,type){
-	clust <- hclust(dist(data), method = "complete")
+  Clustering <- function(){
+	#clust <- hclust(dist(data), method = "complete")
 
-	memb <- cutree(clust, k = num)
+	#memb <- cutree(clust, k = num)
 	
-	if (type == "PCA") {
-		clean_data <- data
-	} else if (type == "Robust-PCA") {
-		if (length(show_outliers$Rows) == 0){
-			clean_data <- data
-		} else{
-			clean_data <- data[-show_outliers$Rows]
-		}
-	} else if (type == "Scaled PCA") {
-		clean_data <- scale(data)
-	} else if (type == "Scaled Robust-PCA"){
-		if (length(show_outliers$Rows) == 0){
-			clean_data <- scale(data)
-		} else{
-			clean_data <- scale(data[-show_outliers$Rows])
-		}
-	} else if (type == "t-SNE"){
-		clean_data <- data
-	}
+	# if(input$rmout == TRUE){
+		# if (length(show_outliers$Rows) == 0){
+			# clean_data <- data
+		# } else{
+			# clean_data <- data[-show_outliers$Rows]
+		# }
+	# } else{
+		# clean_data <- data
+	# }
 	
-	if (type == "t-SNE"){
-		fit <- as.data.frame(tsne(data, epoch_callback = ecb, perplexity=50))
-		df <- data.frame(x = fit$V1, y = fit$V2, z = memb)
+	# if (type1 == "raw_pp"){
+	# } else if (type1 == "zscores_pp"){		
+		# clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
+	# } else if (type1 == "quantiles_pp"){
+		# clean_data <- apply(clean_data,2,rank)
+		# clean_data <- clean_data / max(clean_data)
+	# } else{
+		# clean_data <- apply(clean_data,2,rank)
+	# }
+	
+	if (input$embed_type == "PCA") {
+		df <- pca_comp()[[1]]
+		# fit <- prcomp(clean_data, center=TRUE, scale = FALSE)
+		# df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = memb)
+		# retained_variance <- cumsum(unlist(fit[1])^2) /  max(cumsum(unlist(fit[1])^2))
 	} else {
-		fit <- prcomp(clean_data, center=TRUE, scale = FALSE)
-		df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = memb)
+		df <- tsne_comp()[[1]]
+		# fit <- as.data.frame(tsne(data, perplexity=50))
+		# df <- data.frame(x = fit$V1, y = fit$V2, z = memb)
+		# retained_variance <- NULL
 	}
-	
+
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
 	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
+	
    }
   
   output$MarginalPlot <- renderPlot({
@@ -271,7 +357,7 @@ shinyServer(function(input, output) {
   })
   
   output$Corr <- renderPlot({
-	p <- Correlation(my_data(), input$correlation_dropdown)
+	p <- Correlation()
 	print(p)
   })
   
@@ -281,17 +367,17 @@ shinyServer(function(input, output) {
   })
   
   output$Mean_o <- renderPlot({
-	p <- Mean_Vectors(my_data(),input$mean_type)
+	p <- Mean_Vectors()
 	print(p)
   })
   
   output$Clust <- renderPlot({
-	p <- Clustering(my_data(),input$num_clust,input$pca_type)
+	p <- Clustering()
 	print(p)
   })
   
   output$Scree <- renderPlot({
-	p <- Scree_Plot(my_data())
+	p <- Scree_Plot()
 	print(p)
   })
   
