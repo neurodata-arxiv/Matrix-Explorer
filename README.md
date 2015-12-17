@@ -10,14 +10,17 @@ To run:
 
 # Deploy Updates
 
-1. log in to brainapps1.neurodata.io
-2. ```cd /srv/shinyapps/```
+from terminal:
+1. ```ssh brainapps1.neurodata.io``` and enter your password
+2. ```cd /srv/shinyapps/data-analytics-website```
 3. ```git pull```
 4. (maybe restart shiny)
 
 # If docker container goes down
 
-1. ```./graphexplorerstart.sh```
+(below are instructions for graph explorer, not vector explorer)
+
+1. ```./graphexplorerstart.sh```, which lives in ```/srv/shinyapps/Graph-Explorer```
 
 # If we want to add more dependencies to installation
 
