@@ -310,6 +310,10 @@ shinyServer(function(input, output) {
 	
 		p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
 	}
+	
+	#g <- ggplotGrob(p)
+	#grid.newpage()
+	#grid.draw(g)
   }
   
   Mean_Vectors <- function(){
@@ -358,31 +362,7 @@ shinyServer(function(input, output) {
 	}
   }
   
-  Clustering <- function(){
-	#clust <- hclust(dist(data), method = "complete")
-
-	#memb <- cutree(clust, k = num)
-	
-	# if(input$rmout == TRUE){
-		# if (length(show_outliers$Rows) == 0){
-			# clean_data <- data
-		# } else{
-			# clean_data <- data[-show_outliers$Rows]
-		# }
-	# } else{
-		# clean_data <- data
-	# }
-	
-	# if (type1 == "raw_pp"){
-	# } else if (type1 == "zscores_pp"){		
-		# clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
-	# } else if (type1 == "quantiles_pp"){
-		# clean_data <- apply(clean_data,2,rank)
-		# clean_data <- clean_data / max(clean_data)
-	# } else{
-		# clean_data <- apply(clean_data,2,rank)
-	# }
-	
+  Clustering <- function(){	
 	if (input$embed_type == "PCA") {
 		df <- pca_comp()[[1]]
 		# fit <- prcomp(clean_data, center=TRUE, scale = FALSE)
@@ -398,7 +378,6 @@ shinyServer(function(input, output) {
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
 	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
-	
    }
   
   output$MarginalPlot <- renderPlot({
@@ -458,99 +437,4 @@ shinyServer(function(input, output) {
 	selectInput(inputId = "col_names", label = "Select", colnames(my_data()))
   })
   })
-  
-  # output$ui <- renderUI({
- # tabPanel("Data Heatmap", value = "HM",
-	# sidebarPanel(			
-	# selectInput(inputId = "heatmap_type",
-				# label = "Select",
-				# list("Raw Data" = "raw_heatmap", 
-				 # "Z-scores" = "zscores_heatmap", 
-				 # "Quantiles" = "quantiles_heatmap",
-				 # "Ranks" = "rank_heatmap")),
-	# sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1)
-  # ),
-	# mainPanel(
-		# plotOutput("data_heatmap", width = "100%",height = "1800px")
-	# )  
-  # ),
-  # tabPanel("Marginal Distributions", value = "MD",
-  
-  #Sidebar with a slider input for number of observations
-  # sidebarPanel(
-	# selectInput(inputId = "col_names",
-				# label = "Select",
-				# colnames(data)), 
-				
-	# selectInput(inputId = "show_type",
-				# label = "Select",
-				# list("Histogram" = "hist", 
-				 # "Kernel Density" = "kd", 
-				 # "Combined" = "comb")) 
-  # ),
-
-#  Show a plot of the generated distribution
-  # mainPanel(
-	#includeHTML("graph.js")
-    #reactiveBar(outputId = "perfbarplot")
-    # plotOutput("MarginalPlot")
-  # )  
-  # ),
-  # tabPanel("Outlier Analysis", value = "OA",
-	# sidebarPanel(
-		# sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=10, value=5, step = 1),
-		# dataTableOutput(outputId="outlier_info")
-	# ),
-  # mainPanel(
-    # plotOutput("Outliers")
-		
-  # )
-  # ),
-  # tabPanel("Correlation Analysis", value = "CA",
-  # sidebarPanel(			
-	# selectInput(inputId = "correlation_dropdown",
-				# label = "Select",
-				# list("Pearson's Correlation" = "p_corr",  
-				 # "Distance Metric" = "dist_met")) 
-  # ),
-  # mainPanel(
-   # includeHTML("graph.js")
-	# plotOutput("Corr", width = "150%",height = "1200px")
-  # )
-   # ),
-  # tabPanel("Mean Vector", value = "MV",
-	# sidebarPanel(
-	# selectInput(inputId = "mean_type",
-				# label = "Select Type of Plot",
-				# list("Raw Scatter", "Raw Scatter with error bars", "Box Plot","R-Score")
-				# ) 
-	 # ),
-  # mainPanel(
-    # plotOutput("Mean_o", height = "800px", dblclick = "plot1_dblclick",
-        # brush = brushOpts(
-          # id = "plot1_brush",
-          # resetOnNew = TRUE))
-  # )
-  # ),  
-  # tabPanel("Clustering", value = "C",
-	# sidebarPanel(
-		# plotOutput("Scree")
-	# ),
-  # mainPanel(
-  	# sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
-    # plotOutput("Clust")	
-	# )
-   # )
-   # })
-  
-  # observeEvent(input$plot1_dblclick, {
-    # brush <- input$plot1_brush
-    # if (!is.null(brush)) {
-      # ranges$y <- c(brush$ymin, brush$ymax)
-
-    # } else {
-      # ranges$y <- NULL
-    # }
-  # })
-  
 })
