@@ -67,7 +67,7 @@ shinyServer(function(input, output) {
 			}
 		}
 		r_indi <- which(dataTypes == 0)
-		df[,r_indi] <- NULL 
+		df <- df[,-r_indi]
 		dataTypes <- dataTypes[-r_indi] 
 		data <- df
 	})
