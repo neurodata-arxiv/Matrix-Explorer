@@ -11,10 +11,11 @@ To run:
 # Deploy Updates
 
 from terminal:
-1. ```ssh brainapps1.neurodata.io``` and enter your password
+
+1. ```ssh brainapps1.neurodata.io``` and enter your pword
 2. ```cd /srv/shinyapps/data-analytics-website```
-3. ```git pull```
-4. (maybe restart shiny)
+3.  ```git pull```
+4.   (maybe restart shiny)
 
 # If docker container goes down
 
