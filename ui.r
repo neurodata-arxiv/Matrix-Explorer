@@ -1,5 +1,5 @@
 # Define UI for application
-shinyUI(navbarPage("Data Analytics", id = "tabs",
+shinyUI(navbarPage("vx:vector explorer", id = "tabs",
   tabPanel("Data", value = "D",
     sidebarPanel(
       fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
@@ -64,9 +64,16 @@ shinyUI(navbarPage("Data Analytics", id = "tabs",
   )
   ),
   tabPanel("Correlation Analysis", value = "CA",
-  sidebarPanel(			
+  sidebarPanel(	
+	checkboxInput('rmout_corr', 'Remove Outliers', TRUE),
+	selectInput(inputId = "corr_type",
+				label = "Select Scaling",
+				list("Raw Data" = "raw_corr", 
+				 "Z-scores" = "zscores_corr", 
+				 "Quantiles" = "quantiles_corr",
+				 "Ranks" = "rank_corr")),
 	selectInput(inputId = "correlation_dropdown",
-				label = "Select",
+				label = "Select Metric",
 				list("Pearson's Correlation" = "p_corr",  
 				 "Distance Metric" = "dist_met")) 
   ),
@@ -77,10 +84,15 @@ shinyUI(navbarPage("Data Analytics", id = "tabs",
    ),
   tabPanel("Mean Vector", value = "MV",
 	sidebarPanel(
+	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
 				label = "Select Type of Plot",
-				list("Raw Scatter", "Raw Scatter with error bars", "Box Plot","R-Score")
-				) 
+				list("Scatter", "Scatter with error bars", "Box Plot")
+				),
+	selectInput(inputId = "mean_pp_type",
+			label = "Select",
+			list("Raw Data" = "raw_mean", 
+			 "R-scores" = "rscores_mean"))				
 	 ),
   mainPanel(
     plotOutput("Mean_o", height = "800px", dblclick = "plot1_dblclick",
@@ -90,12 +102,36 @@ shinyUI(navbarPage("Data Analytics", id = "tabs",
   )
   ),  
   tabPanel("Clustering", value = "C",
-	sidebarPanel(
-		plotOutput("Scree")
-	),
-  mainPanel(
-  	sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
-    plotOutput("Clust")	
-	)
-   )
+  fluidPage(
+	plotOutput("Clust"),
+  fluidRow(
+    column(4,
+      wellPanel(
+		sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
+		checkboxInput('rmout', 'Remove Outliers', TRUE),
+		selectInput(inputId = "embed_type",
+			label = "Select Dimensionality Reduction Technique",
+			list("PCA","t-SNE")
+			),
+		selectInput(inputId = "clust_pp_type",
+				label = "Select",
+				list("Raw Data" = "raw_pp", 
+				 "Z-scores" = "zscores_pp", 
+				 "Quantiles" = "quantiles_pp",
+				 "Ranks" = "rank_pp"))
+      )       
+    ),
+    column(8,
+      plotOutput("Scree")
+    )
+  )
+  )
+	# sidebarPanel(
+		# plotOutput("Scree")
+	# ),
+  # mainPanel(
+  	# sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
+    # plotOutput("Clust")	
+	# )
+  )
 ))
