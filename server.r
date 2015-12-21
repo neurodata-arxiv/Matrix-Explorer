@@ -2,12 +2,12 @@ library(shiny)
 library(ggplot2)
 library(robustbase)
 library(reshape)
-library(xlsx)
 library(grid)
 library(fastcluster)
 library(ggdendro)
 library(gtable)
 library(tsne)
+library(RColorBrewer)
 
 options(shiny.maxRequestSize = 9*1024^2)
 
@@ -20,9 +20,56 @@ shinyServer(function(input, output) {
 		inFile <- input$data 
 		if (is.null(inFile))
 			return(NULL)
-		data <- read.csv(inFile$datapath, header = input$header, sep = input$sep,quote = input$quote, dec = ".")
-		data[,1] <- NULL
-		data
+		df <- read.csv(inFile$datapath, header = input$header, sep = input$sep,quote = input$quote, dec = ".")
+		#data[,1] <- NULL
+		dataTypes <- vector(mode="character", length=dim(df)[2])  # define a vector to hold each columns data type 
+		# we loop through each column and determine its type 
+		for (i in 1:dim(df)[2]){
+			# first task is to scrub the data 
+			df[,i] <- gsub(" ", "", df[,i]) # remove spaces 
+			df[,i] <- tolower(df[,i])
+			# check to make sure there are no na n/a and we missed this as continuous data 
+			na_indi <- which(df[,i] =="na" | df[,i]=="n/a") #CHECK THIS
+			if (length(na_indi) > 0 ) # we found some Nas 
+			{
+				df[na_indi,i] <- NA
+			}
+    
+			na_indi <- sum(is.na(df[,i])) # get initial count of na indices 
+    
+			# check if it is numeric by converting to it 
+			test <- df[,i] # holder variable 
+			test <- as.numeric(test) 
+			na_indi2 <- sum(is.na(test))
+    
+			if (na_indi2>na_indi) #must be characters 
+			{
+				dataTypes[i] <- "character"
+      
+			} else { 
+				dataTypes[i] <- "double"
+				df[,i] <- test
+			}
+		}
+  
+		# we now look to convert to factors 
+
+		for (i in 1:(dim(df)[2])){
+			if (dataTypes[i] == "character"){
+				dataTypes[i] = "factor"
+				df[,i] <- as.factor(df[,i])
+				if (nlevels(df[,i]) > 6) # bad column and we delete 
+					{
+						# df[,i] <- NULL # remove column 
+						dataTypes[i] <- 0 # mark to remove data type
+					}
+      
+			}
+		}
+		r_indi <- which(dataTypes == 0)
+		df[,r_indi] <- NULL 
+		dataTypes <- dataTypes[-r_indi] 
+		data <- df
 	})
 
 
@@ -66,6 +113,12 @@ shinyServer(function(input, output) {
 	
 	clust <- reactive({
 		memb <- cutree(hclust(dist(my_data()), method = "complete"), k = input$num_clust)
+	})
+	
+	#This does not need to be reactive, as you will switch tabs before color scheme matters. 
+	color_fun <- reactive({
+		cgrad <- brewer.pal(5,input$colormap);
+		c_fun<- colorRampPalette(cgrad)
 	})
 	
 	Scree_Plot <- reactive({
@@ -127,7 +180,7 @@ shinyServer(function(input, output) {
 	ddata_x <- dendro_data(dd.row)
 	ddata_y <- dendro_data(dd.col)
 		
-	p1 <- ggplot(temp, aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun(bins), name = "Z-score",guide=FALSE)
+	p1 <- ggplot(temp, aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
 	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))# + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10))
 		
@@ -136,7 +189,7 @@ shinyServer(function(input, output) {
 	p3 <- ggplot(segment(ddata_y)) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 		
 	cb_df <- data.frame(X1 = 1,X2 = temp$lev)
-	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
+	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
 
 	gA <- ggplotGrob(p1)
 	gB <- ggplotGrob(p3)
@@ -234,7 +287,7 @@ shinyServer(function(input, output) {
 		temp <- melt(temp)
 		temp <- na.omit(temp)
 	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun(3)[1], high = color_fun(3)[2], mid = color_fun(3)[3], midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
+		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
 		base_size <- 14
 	
 		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Correlation Heatmap")
@@ -248,7 +301,7 @@ shinyServer(function(input, output) {
 		temp <- melt(temp)
 		temp <- na.omit(temp)
 	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun(3)[1], high = color_fun(3)[2], mid = color_fun(3)[3], name = "Distance\nmatrix\n")
+		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], name = "Distance\nmatrix\n")
 		base_size <- 14
 	
 		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Distance Matrix Heatmap")

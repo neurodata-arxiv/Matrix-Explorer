@@ -1,4 +1,3 @@
-library(xlsx)
 library(RColorBrewer)
 
 DataScrubbing <- function(file_name) 
@@ -92,8 +91,8 @@ reactiveBar <- function (outputId)
 
 # data <- input_data
 
-cgrad <- brewer.pal(5,'BuPu');
+#cgrad <- brewer.pal(5,'BuPu');
 
-color_fun <- colorRampPalette(cgrad)
+#color_fun <- colorRampPalette(cgrad)
 
-my_data <- reactiveValues()
+#my_data <- reactiveValues()
