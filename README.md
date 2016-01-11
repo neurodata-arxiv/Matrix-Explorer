@@ -13,7 +13,7 @@ To run:
 from terminal:
 
 1. ```ssh brainapps1.neurodata.io``` and enter your pword
-2. ```cd /srv/shinyapps/data-analytics-website```
+2. ```cd /srv/shinyapps/Vector-Explorer```
 3.  ```git pull```
 4.   (maybe restart shiny)
 
