@@ -9,7 +9,7 @@ library(gtable)
 library(tsne)
 library(RColorBrewer)
 
-options(shiny.maxRequestSize = 9*1024^2)
+options(shiny.maxRequestSize = 50*1024^2)
 
 shinyServer(function(input, output) {
 	ranges <- reactiveValues(y = NULL)
@@ -18,8 +18,9 @@ shinyServer(function(input, output) {
 	my_data <- reactive({
 		validate(need(input$data, message = FALSE)) 
 		inFile <- input$data 
-		if (is.null(inFile))
+		if (is.null(inFile)){
 			return(NULL)
+		}
 		df <- read.csv(inFile$datapath, header = input$header, sep = input$sep,quote = input$quote, dec = ".")
 		dataTypes <- vector(mode="character", length = dim(df)[2])  # define a vector to hold each columns data type 
 		
@@ -28,10 +29,10 @@ shinyServer(function(input, output) {
 		for (i in 1:dim(df)[2]){
 			# first task is to scrub the data 
 			df[,i] <- gsub(" ", "", df[,i]) # remove spaces 
-			df[,i] <- tolower(df[,i])#Convert to lowercase
+			#df[,i] <- tolower(df[,i])#Convert to lowercase
 			
-			# check to make sure there are no na n/a and we missed this as continuous data 
-			bad_indi <- which(is.infinite(df[,i]) | is.na(df[,i]) ) #CHECK THIS
+			# check to make sure there are no Infs 
+			bad_indi <- which(is.infinite(df[,i])) #CHECK THIS
 			if (length(bad_indi) > 0 ) # we found some Nas 
 			{
 				df[bad_indi,i] <- NA
@@ -53,14 +54,17 @@ shinyServer(function(input, output) {
 				df[,i] <- test
 			}
 		}
+		
+		if(input$proc){
+			df <- na.omit(df)
+		}
   
 		# we now look to convert to factors 
-
 		for (i in 1:(dim(df)[2])){
 			if (dataTypes[i] == "character"){
 				dataTypes[i] = "factor"
 				df[,i] <- as.factor(df[,i])
-				if (nlevels(df[,i]) > 6) # bad column and we delete 
+				if (nlevels(df[,i]) > 10000) # bad column and we delete 
 					{
 						dataTypes[i] <- 0 # mark to remove data type
 					}
@@ -73,23 +77,32 @@ shinyServer(function(input, output) {
 		r_indi <- which(dataTypes == 0)	
 		if(length(r_indi) > 0) {
 			df <- df[,-r_indi]
+			dataTypes <- dataTypes[-r_indi]
 		}
-		View(df)
-		dataTypes <- dataTypes[-r_indi] 
-		data <- df
+		#View(df)
+		 
+		data_with_factors <- df
+		f_indi <- which(dataTypes == "factor")	
+		if(length(f_indi) > 0) {
+			df <- df[,-f_indi]
+			dataTypes <- dataTypes[-f_indi]
+		}
+		#View(df)
+		data <- list(df,data_with_factors)
+		
 	})
 
 
 	data_pp <- reactive({
 		if(input$rmout == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 			} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 		}
 	
 		if (input$clust_pp_type == "raw_pp"){
@@ -106,23 +119,30 @@ shinyServer(function(input, output) {
 	
 	pca_comp <- reactive({	
 		fit <- prcomp(data_pp(), center=TRUE, scale = FALSE)
-		df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = clust())
+		df <- data.frame(x = fit$x[,1], y = fit$x[,2])
 		rv <- fit[1]
 		list(df,rv)
 	})
 	
 	tsne_comp <- reactive({		
 		fit <- as.data.frame(tsne(data_pp(), perplexity=50))
-		df <- data.frame(x = fit$V1, y = fit$V2, z = clust())
+		df <- data.frame(x = fit$V1, y = fit$V2)
 		rv <- NULL
 		list(df,rv)
 	})
 	
 	clust <- reactive({
-		memb <- cutree(hclust(dist(my_data()), method = "complete"), k = input$num_clust)
+		if (input$embed_type == "PCA") {
+			df <- pca_comp()[[1]]
+		} else {
+			df <- tsne_comp()[[1]]
+		}
+		clusters_result <- kmeans(df, input$num_clust)
+		clusters <- cbind(df,z = clusters_result$cluster)
+		#memb <- cutree(hclust(dist(my_data()[[1]]), method = "complete"), k = input$num_clust)
 	})
 	
-	#This does not need to be reactive, as you will switch tabs before color scheme matters. 
+	#This does not need to be reactive, as you will switch tabs before colour scheme matters. 
 	color_fun <- reactive({
 		cgrad <- brewer.pal(5,input$colormap);
 		c_fun<- colorRampPalette(cgrad)
@@ -223,12 +243,12 @@ shinyServer(function(input, output) {
 
 	
 	if (type == "hist"){
-		p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(fill = "deepskyblue2", alpha = 0.2, color = "white") + title("Marginal Distribution") + ylab('Counts')
+		p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(fill = "deepskyblue2", alpha = 0.2, color = "white") + ggtitle("Marginal Distribution") + ylab('Counts')
 	} else if (type == "kd"){
-		p <- ggplot(data, aes_q(x = as.name(name))) + geom_density(fill = "blue" , alpha = 0.2) + title("Marginal Distribution") + ylab('Density')
+		p <- ggplot(data, aes_q(x = as.name(name))) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
 	}
 	else{
-		 p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", color = "white", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + title("Marginal Distribution") + ylab('Density')
+		 p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", color = "white", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
 	}
 	
 	p <- p + theme(text = element_text(size=20)) + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-6.6) + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-5)
@@ -264,13 +284,13 @@ shinyServer(function(input, output) {
   Correlation <- function(){
 	if(input$rmout_corr == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 			} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 	}
 	
 	if (input$corr_type == "raw_corr"){
@@ -311,7 +331,7 @@ shinyServer(function(input, output) {
 		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], name = "Distance\nmatrix\n")
 		base_size <- 14
 	
-		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Distance Matrix Heatmap")
+		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Euclidean Distance Matrix Heatmap")
 	
 		p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
 	}
@@ -320,13 +340,13 @@ shinyServer(function(input, output) {
   Mean_Vectors <- function(){
 	if(input$rmout_mean == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 			} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()
+				clean_data <- my_data()[[1]]
 	}
   
 	num_vars <- dim(clean_data)[2]
@@ -364,41 +384,8 @@ shinyServer(function(input, output) {
   }
   
   Clustering <- function(){
-	#clust <- hclust(dist(data), method = "complete")
-
-	#memb <- cutree(clust, k = num)
 	
-	# if(input$rmout == TRUE){
-		# if (length(show_outliers$Rows) == 0){
-			# clean_data <- data
-		# } else{
-			# clean_data <- data[-show_outliers$Rows]
-		# }
-	# } else{
-		# clean_data <- data
-	# }
-	
-	# if (type1 == "raw_pp"){
-	# } else if (type1 == "zscores_pp"){		
-		# clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
-	# } else if (type1 == "quantiles_pp"){
-		# clean_data <- apply(clean_data,2,rank)
-		# clean_data <- clean_data / max(clean_data)
-	# } else{
-		# clean_data <- apply(clean_data,2,rank)
-	# }
-	
-	if (input$embed_type == "PCA") {
-		df <- pca_comp()[[1]]
-		# fit <- prcomp(clean_data, center=TRUE, scale = FALSE)
-		# df <- data.frame(x = fit$x[,1], y = fit$x[,2], z = memb)
-		# retained_variance <- cumsum(unlist(fit[1])^2) /  max(cumsum(unlist(fit[1])^2))
-	} else {
-		df <- tsne_comp()[[1]]
-		# fit <- as.data.frame(tsne(data, perplexity=50))
-		# df <- data.frame(x = fit$V1, y = fit$V2, z = memb)
-		# retained_variance <- NULL
-	}
+	df <- clust()
 
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
@@ -407,15 +394,14 @@ shinyServer(function(input, output) {
    }
   
   output$MarginalPlot <- renderPlot({
-    p <- Marginals(my_data(),input$col_names,input$show_type)
+    p <- Marginals(my_data()[[1]],input$col_names,input$show_type)
     print(p)
   })
   
   output$Outliers <- renderPlot({
-	result <- Outliers(my_data(),input$pval)
+	result <- Outliers(my_data()[[1]],input$pval)
 	p <- result[2]
 	outlier_data <<- result[[1]]
-	#assign("outlier_data", result[[1]], envir = .GlobalEnv) 
 	print(p)
   })
   
@@ -425,7 +411,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
-	p <- Data_Heatmap(my_data(),input$heatmap_type,input$num_bin_data_heatmap)
+	p <- Data_Heatmap(my_data()[[1]],input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
@@ -444,118 +430,30 @@ shinyServer(function(input, output) {
 	print(p)
   })
   
-  output$outlier_info <- renderDataTable({
-	#paste0("x=", input$plot_click$x, "\ny=", input$plot_click$y)
-	
+  output$outlier_info <- renderDataTable({	
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
-	#nearPoints(df_outliers[,c(1:2)], input$plot_brush)#, xval = "x", yval = "y")
-    # nearPoints() also works with hover and dblclick events
   }, options= list(searching = FALSE))
   
   output$table <- renderDataTable({
-    my_data()			 
-	#result <- cbind(row_names,input$data)
-	#result
+    my_data()[[2]]			 
   })
+  
+  # output$corr_location_info <- renderDataTable({
+	# if (is.null(input$corr_plot_loc$x)) return()
+	# if (is.null(input$corr_plot_loc$y)) return()
+  
+	# col_names <- colnames(my_data()[[1]])
+	
+	# data.frame(Column = col_names[round(input$corr_plot_loc$x)],Row = col_names[round(input$corr_plot_loc$y)])
+	
+  # }, options= list(searching = FALSE))
+  
   
   observeEvent(my_data(), { 
     output$marginal_column <- renderUI({
-	selectInput(inputId = "col_names", label = "Select", colnames(my_data()))
+	selectInput(inputId = "col_names", label = "Select", colnames(my_data()[[1]]))
   })
   })
   
-  # output$ui <- renderUI({
- # tabPanel("Data Heatmap", value = "HM",
-	# sidebarPanel(			
-	# selectInput(inputId = "heatmap_type",
-				# label = "Select",
-				# list("Raw Data" = "raw_heatmap", 
-				 # "Z-scores" = "zscores_heatmap", 
-				 # "Quantiles" = "quantiles_heatmap",
-				 # "Ranks" = "rank_heatmap")),
-	# sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1)
-  # ),
-	# mainPanel(
-		# plotOutput("data_heatmap", width = "100%",height = "1800px")
-	# )  
-  # ),
-  # tabPanel("Marginal Distributions", value = "MD",
-  
-  #Sidebar with a slider input for number of observations
-  # sidebarPanel(
-	# selectInput(inputId = "col_names",
-				# label = "Select",
-				# colnames(data)), 
-				
-	# selectInput(inputId = "show_type",
-				# label = "Select",
-				# list("Histogram" = "hist", 
-				 # "Kernel Density" = "kd", 
-				 # "Combined" = "comb")) 
-  # ),
-
-#  Show a plot of the generated distribution
-  # mainPanel(
-	#includeHTML("graph.js")
-    #reactiveBar(outputId = "perfbarplot")
-    # plotOutput("MarginalPlot")
-  # )  
-  # ),
-  # tabPanel("Outlier Analysis", value = "OA",
-	# sidebarPanel(
-		# sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=10, value=5, step = 1),
-		# dataTableOutput(outputId="outlier_info")
-	# ),
-  # mainPanel(
-    # plotOutput("Outliers")
-		
-  # )
-  # ),
-  # tabPanel("Correlation Analysis", value = "CA",
-  # sidebarPanel(			
-	# selectInput(inputId = "correlation_dropdown",
-				# label = "Select",
-				# list("Pearson's Correlation" = "p_corr",  
-				 # "Distance Metric" = "dist_met")) 
-  # ),
-  # mainPanel(
-   # includeHTML("graph.js")
-	# plotOutput("Corr", width = "150%",height = "1200px")
-  # )
-   # ),
-  # tabPanel("Mean Vector", value = "MV",
-	# sidebarPanel(
-	# selectInput(inputId = "mean_type",
-				# label = "Select Type of Plot",
-				# list("Raw Scatter", "Raw Scatter with error bars", "Box Plot","R-Score")
-				# ) 
-	 # ),
-  # mainPanel(
-    # plotOutput("Mean_o", height = "800px", dblclick = "plot1_dblclick",
-        # brush = brushOpts(
-          # id = "plot1_brush",
-          # resetOnNew = TRUE))
-  # )
-  # ),  
-  # tabPanel("Clustering", value = "C",
-	# sidebarPanel(
-		# plotOutput("Scree")
-	# ),
-  # mainPanel(
-  	# sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
-    # plotOutput("Clust")	
-	# )
-   # )
-   # })
-  
-  # observeEvent(input$plot1_dblclick, {
-    # brush <- input$plot1_brush
-    # if (!is.null(brush)) {
-      # ranges$y <- c(brush$ymin, brush$ymax)
-
-    # } else {
-      # ranges$y <- NULL
-    # }
-  # })
   
 })

@@ -1,6 +1,6 @@
 # Define UI for application
-shinyUI(navbarPage("vx:vector explorer", id = "tabs",
-  tabPanel("Data", value = "D",
+shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
+  tabPanel("Data Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
 		tags$hr(),
@@ -15,6 +15,9 @@ shinyUI(navbarPage("vx:vector explorer", id = "tabs",
                      'Double Quote'='"',
                      'Single Quote'="'"),
                    '"'),
+		radioButtons('proc', 'Remove rows containing NAs and Infs?',
+                   c('Yes'='TRUE',
+                     'No'="FALSE")),
 		tags$hr(),	
 		selectInput(inputId = "colormap",
 				label = "Select Color Scheme",
@@ -62,9 +65,9 @@ shinyUI(navbarPage("vx:vector explorer", id = "tabs",
 	uiOutput("marginal_column"),
 	selectInput(inputId = "show_type",
 				label = "Select",
-				list("Histogram" = "hist", 
-				 "Kernel Density" = "kd", 
-				 "Combined" = "comb")) 
+				list("Combined" = "comb",
+				"Histogram" = "hist", 
+				 "Kernel Density" = "kd")) 
   ),
 
   # Show a plot of the generated distribution
@@ -74,7 +77,7 @@ shinyUI(navbarPage("vx:vector explorer", id = "tabs",
     plotOutput("MarginalPlot")
   )  
   ),
-  tabPanel("Outlier Analysis", value = "OA",
+  tabPanel("Outlier Detection", value = "OA",
 	sidebarPanel(
 		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=10, value=5, step = 1),
 		dataTableOutput(outputId="outlier_info")
@@ -96,14 +99,15 @@ shinyUI(navbarPage("vx:vector explorer", id = "tabs",
 	selectInput(inputId = "correlation_dropdown",
 				label = "Select Metric",
 				list("Pearson's Correlation" = "p_corr",  
-				 "Distance Metric" = "dist_met")) 
+				 "Euclidean Distance Matrix" = "dist_met")) ,
+	dataTableOutput(outputId="corr_location_info")
   ),
   mainPanel(
     #includeHTML("graph.js")
-	plotOutput("Corr", width = "150%",height = "1200px")
+	plotOutput("Corr", width = "100%", height = "600px", hover = "corr_plot_loc")
   )
    ),
-  tabPanel("Mean Vector", value = "MV",
+  tabPanel("Plots of Mean Vector", value = "MV",
 	sidebarPanel(
 	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
@@ -122,7 +126,7 @@ shinyUI(navbarPage("vx:vector explorer", id = "tabs",
           resetOnNew = TRUE))
   )
   ),  
-  tabPanel("Clustering", value = "C",
+  tabPanel("2D-Embedding and Clustering", value = "C",
   fluidPage(
 	plotOutput("Clust"),
   fluidRow(
