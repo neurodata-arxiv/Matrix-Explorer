@@ -439,8 +439,8 @@ shinyServer(function(input, output) {
 	my_data()[[2]], 
 	filter = 'top', 
 	selection = list(target = 'row+column'),
-	extensions = c('TableTools'),
-	options = list(dom = 'T<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('swf_file')))
+	extensions = c('TableTools','ColVis','ColReorder'),
+	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('swf_file')))
   )
   
   # output$corr_location_info <- renderDataTable({
