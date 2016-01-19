@@ -41,7 +41,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				 "Yellow-Orange-Red" = "YlOrRd"))
     ),
 	mainPanel(
-		dataTableOutput(outputId="table")
+		DT::dataTableOutput(outputId="table")
 	)  
   ),
  tabPanel("Data Heatmap", value = "HM",

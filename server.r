@@ -8,6 +8,7 @@ library(ggdendro)
 library(gtable)
 library(tsne)
 library(RColorBrewer)
+library(DT)
 
 options(shiny.maxRequestSize = 50*1024^2)
 
@@ -434,9 +435,12 @@ shinyServer(function(input, output) {
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
   }, options= list(searching = FALSE))
   
-  output$table <- renderDataTable({
-    my_data()[[2]]			 
-  })
+  output$table <- DT::renderDataTable(
+	my_data()[[2]], 
+	filter = 'top', 
+	selection = list(target = 'row+column'),
+	extensions = c('Responsive','ColReorder', 'ColVis','KeyTable')
+  )
   
   # output$corr_location_info <- renderDataTable({
 	# if (is.null(input$corr_plot_loc$x)) return()
