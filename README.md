@@ -1,3 +1,5 @@
+Deprecated. Up to date version can be found at https://github.com/openconnectome/Vector-Explorer.
+
 # NeuroData's Vector Explorer
 Web-based vector analytics and some visualization
 
