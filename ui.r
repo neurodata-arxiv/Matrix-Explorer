@@ -1,5 +1,5 @@
 # Define UI for application
-shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
+shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
   tabPanel("Data Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
@@ -9,16 +9,22 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
                    c(Comma=',',
                      Semicolon=';',
                      Tab='\t'),
-                   ','),
+                   ',',inline = TRUE),
 		radioButtons('quote', 'Quote',
                    c(None='',
                      'Double Quote'='"',
                      'Single Quote'="'"),
-                   '"'),
+                   '"',inline = TRUE),
 		radioButtons('proc', 'Remove rows containing NAs and Infs?',
                    c('Yes'='TRUE',
-                     'No'="FALSE")),
-		tags$hr(),	
+                     'No'="FALSE"),inline = TRUE),
+		hr(),
+		actionButton('select_all_rows', 'Select All Rows',width = '200px'),
+		actionButton('clear_rows', 'Clear Rows',width = '200px'),	
+		br(),
+		actionButton('select_all_columns', 'Select All Columns',width = '200px'),
+		actionButton('clear_columns', 'Clear Columns',width = '200px'),
+		hr(),
 		selectInput(inputId = "colormap",
 				label = "Select Color Scheme",
 				list("Blue" = "Blues",
@@ -41,7 +47,8 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				 "Yellow-Orange-Red" = "YlOrRd"))
     ),
 	mainPanel(
-		DT::dataTableOutput(outputId="table")
+		DT::dataTableOutput(outputId="table"),
+		includeCSS("www/format.css")
 	)  
   ),
  tabPanel("Data Heatmap", value = "HM",
@@ -132,7 +139,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
   fluidRow(
     column(4,
       wellPanel(
-		sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step = 1),
+		sliderInput(inputId = "num_clust", label = "Number of Clusters", min=1, max=20, value=3, step=1),
 		checkboxInput('rmout', 'Remove Outliers', TRUE),
 		selectInput(inputId = "embed_type",
 			label = "Select Dimensionality Reduction Technique",
@@ -159,4 +166,5 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
     # plotOutput("Clust")	
 	# )
   )
-))
+)
+)

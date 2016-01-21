@@ -437,11 +437,44 @@ shinyServer(function(input, output) {
   
   output$table <- DT::renderDataTable(
 	my_data()[[2]], 
+	class = 'row-border stripe hover',
+	callback = JS("
+		$('#table tbody').on( 'click', 'tr', function () {
+			if ( $(this).hasClass('row_selected_1') ) {
+				$(this).addClass('row_selected_2');
+			} else if ( $(this).hasClass('row_selected_2') ){
+				$(this).removeClass('row_selected_1');
+				$(this).removeClass('row_selected_2');
+			} else {
+				table.$('tr.selected').removeClass('row_selected_1');
+				table.$('tr.selected').removeClass('row_selected_2');
+				$(this).addClass('row_selected_1');
+			}
+		} );
+	"),
 	filter = 'top', 
-	selection = list(target = 'row+column'),
+	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
-	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('swf_file')))
+	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = 'www/copy_csv_xls.swf'),scrollCollapse = TRUE)
   )
+  
+  proxy = dataTableProxy('table')
+  
+  observeEvent(input$select_all_rows, {
+    selectRows(proxy, as.numeric(rownames(my_data()[[2]])))
+  })
+
+  observeEvent(input$select_all_columns, {
+    selectColumns(proxy, 1:dim(my_data()[[2]])[2])
+  })
+
+  observeEvent(input$clear_rows, {
+    selectRows(proxy, NULL)
+  })
+
+  observeEvent(input$clear_columns, {
+    selectColumns(proxy, NULL)
+  })
   
   # output$corr_location_info <- renderDataTable({
 	# if (is.null(input$corr_plot_loc$x)) return()
