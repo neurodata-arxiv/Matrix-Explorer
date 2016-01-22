@@ -1,2 +1,5 @@
 tr.row_selected_1 td{background-color:blue !important;}
 tr.row_selected_2 td{background-color:red !important;}
+
+td.col_selected_1 {background-color:MediumTurquoise  !important;}
+td.col_selected_2 {background-color:Beige  !important;}

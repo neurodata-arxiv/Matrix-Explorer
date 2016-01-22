@@ -48,7 +48,8 @@ shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
     ),
 	mainPanel(
 		DT::dataTableOutput(outputId="table"),
-		includeCSS("www/format.css")
+		includeCSS("www/format.css"),
+		tags$head(includeScript("www/interact.js"))
 	)  
   ),
  tabPanel("Data Heatmap", value = "HM",

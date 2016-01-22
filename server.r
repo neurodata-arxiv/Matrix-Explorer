@@ -13,6 +13,20 @@ library(DT)
 options(shiny.maxRequestSize = 50*1024^2)
 
 shinyServer(function(input, output) {
+
+	col_sel <- reactive({
+		if (length(input$col_sel) > 0){
+			input$col_sel	
+		} else{
+			c(1:dim(my_data()[[1]])[2])
+		}
+	})
+	
+	col_class <- reactive({
+		input$col_class
+	})
+	
+	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
@@ -97,13 +111,13 @@ shinyServer(function(input, output) {
 	data_pp <- reactive({
 		if(input$rmout == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 		}
 	
 		if (input$clust_pp_type == "raw_pp"){
@@ -285,13 +299,13 @@ shinyServer(function(input, output) {
   Correlation <- function(){
 	if(input$rmout_corr == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 	}
 	
 	if (input$corr_type == "raw_corr"){
@@ -341,13 +355,13 @@ shinyServer(function(input, output) {
   Mean_Vectors <- function(){
 	if(input$rmout_mean == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]]
+				clean_data <- my_data()[[1]][,unlist(col_sel())]
 	}
   
 	num_vars <- dim(clean_data)[2]
@@ -395,12 +409,12 @@ shinyServer(function(input, output) {
    }
   
   output$MarginalPlot <- renderPlot({
-    p <- Marginals(my_data()[[1]],input$col_names,input$show_type)
+    p <- Marginals(my_data()[[1]][,unlist(col_sel())],input$col_names,input$show_type)
     print(p)
   })
   
   output$Outliers <- renderPlot({
-	result <- Outliers(my_data()[[1]],input$pval)
+	result <- Outliers(my_data()[[1]][,unlist(col_sel())],input$pval)
 	p <- result[2]
 	outlier_data <<- result[[1]]
 	print(p)
@@ -412,7 +426,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
-	p <- Data_Heatmap(my_data()[[1]],input$heatmap_type,input$num_bin_data_heatmap)
+	p <- Data_Heatmap(my_data()[[1]][,unlist(col_sel())],input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
@@ -438,43 +452,13 @@ shinyServer(function(input, output) {
   output$table <- DT::renderDataTable(
 	my_data()[[2]], 
 	class = 'row-border stripe hover',
-	callback = JS("
-		$('#table tbody').on( 'click', 'tr', function () {
-			if ( $(this).hasClass('row_selected_1') ) {
-				$(this).addClass('row_selected_2');
-			} else if ( $(this).hasClass('row_selected_2') ){
-				$(this).removeClass('row_selected_1');
-				$(this).removeClass('row_selected_2');
-			} else {
-				table.$('tr.selected').removeClass('row_selected_1');
-				table.$('tr.selected').removeClass('row_selected_2');
-				$(this).addClass('row_selected_1');
-			}
-		} );
-	"),
+	callback = JS("initTable(table)"),
 	filter = 'top', 
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
 	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = 'www/copy_csv_xls.swf'),scrollCollapse = TRUE)
   )
   
-  proxy = dataTableProxy('table')
-  
-  observeEvent(input$select_all_rows, {
-    selectRows(proxy, as.numeric(rownames(my_data()[[2]])))
-  })
-
-  observeEvent(input$select_all_columns, {
-    selectColumns(proxy, 1:dim(my_data()[[2]])[2])
-  })
-
-  observeEvent(input$clear_rows, {
-    selectRows(proxy, NULL)
-  })
-
-  observeEvent(input$clear_columns, {
-    selectColumns(proxy, NULL)
-  })
   
   # output$corr_location_info <- renderDataTable({
 	# if (is.null(input$corr_plot_loc$x)) return()
@@ -489,7 +473,7 @@ shinyServer(function(input, output) {
   
   observeEvent(my_data(), { 
     output$marginal_column <- renderUI({
-	selectInput(inputId = "col_names", label = "Select", colnames(my_data()[[1]]))
+	selectInput(inputId = "col_names", label = "Select", colnames(my_data()[[1]][,unlist(col_sel())]))
   })
   })
   
