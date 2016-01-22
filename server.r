@@ -14,6 +14,7 @@ options(shiny.maxRequestSize = 50*1024^2)
 
 shinyServer(function(input, output) {
 
+	#Set up a reactive variable to accept input from interact.js when the user clicks on a row, column, or chooses a column class. Note that when no columns or rows are selected, Vector Explorer automatically analyzes all rows and columns.
 	col_sel <- reactive({
 		if (length(input$col_sel) > 0){
 			input$col_sel	
@@ -23,7 +24,12 @@ shinyServer(function(input, output) {
 	})
 	
 	col_class <- reactive({
-		input$col_class
+		if (input$col_class %in% my_data()[[3]]){
+			input$col_class
+		} else {
+			NA
+		}
+		
 	})
 	
 	row_sel <- reactive({
@@ -33,6 +39,13 @@ shinyServer(function(input, output) {
 			c(1:dim(my_data()[[1]])[1])
 		}
 	})
+	
+	#Shiny reactive variables use lazy evaluation and are only evaluated when called. Shiny observers use eager evaluation and are called whenever changed. Take advantage of this to update the col_sel, col_class, and row_sel reactive variables as soon as input$col_sel, input$row_sel, and input$col_class are changed by the user. 
+	#observe({
+	#	col_sel()
+	#	col_class()
+	#	row_sel()
+	#})
 	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
@@ -110,7 +123,7 @@ shinyServer(function(input, output) {
 			dataTypes <- dataTypes[-f_indi]
 		}
 		#View(df)
-		data <- list(df,data_with_factors)
+		data <- list(df,data_with_factors,f_indi,r_indi)
 		
 	})
 	
@@ -265,19 +278,25 @@ shinyServer(function(input, output) {
 	
   Marginals <- function(data,name,type){
 	validate(need(name, message=FALSE))
+	
 	current_column <- which(colnames(data) == name)
 
 	current_mean <- mean(data[,current_column])
 	current_median <- median(data[,current_column])
-
+	
+	if(input$marginal_condition_classes){
+		aes_set <- aes_q(x = as.name(name), color = colnames(data)[col_class()])
+	} else{
+		aes_set <- aes_q(x = as.name(name))
+	}
 	
 	if (type == "hist"){
-		p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(fill = "deepskyblue2", alpha = 0.2, color = "white") + ggtitle("Marginal Distribution") + ylab('Counts')
+		p <- ggplot(data, aes_set) + geom_histogram(fill = "deepskyblue2", alpha = 0.2, color = "white") + ggtitle("Marginal Distribution") + ylab('Counts')
 	} else if (type == "kd"){
-		p <- ggplot(data, aes_q(x = as.name(name))) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
+		p <- ggplot(data, aes_set) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
 	}
 	else{
-		 p <- ggplot(data, aes_q(x = as.name(name))) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", color = "white", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
+		 p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", color = "white", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
 	}
 	
 	p <- p + theme(text = element_text(size=20)) + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-6.6) + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-5)
@@ -462,7 +481,7 @@ shinyServer(function(input, output) {
   
   output$table <- DT::renderDataTable(
 	my_data()[[2]], 
-	class = 'row-border stripe hover',
+	class = 'row-border stripe hover order-column',
 	container = table_cont(),
 	callback = JS("initTable(table)"),
 	filter = 'top', 

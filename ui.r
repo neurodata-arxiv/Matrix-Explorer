@@ -75,7 +75,8 @@ shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
 				label = "Select",
 				list("Combined" = "comb",
 				"Histogram" = "hist", 
-				 "Kernel Density" = "kd")) 
+				 "Kernel Density" = "kd")),
+	checkboxInput('marginal_condition_classes', 'Condition on classes?', FALSE)				 
   ),
 
   # Show a plot of the generated distribution
@@ -111,7 +112,6 @@ shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
 	dataTableOutput(outputId="corr_location_info")
   ),
   mainPanel(
-    #includeHTML("graph.js")
 	plotOutput("Corr", width = "100%", height = "600px", hover = "corr_plot_loc")
   )
    ),
