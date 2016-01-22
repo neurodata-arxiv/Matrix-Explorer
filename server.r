@@ -26,6 +26,13 @@ shinyServer(function(input, output) {
 		input$col_class
 	})
 	
+	row_sel <- reactive({
+		if (length(input$row_sel) > 0){
+			input$row_sel	
+		} else{
+			c(1:dim(my_data()[[1]])[1])
+		}
+	})
 	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
@@ -106,18 +113,25 @@ shinyServer(function(input, output) {
 		data <- list(df,data_with_factors)
 		
 	})
+	
+	table_cont <- reactive({
+		htmltools::withTags(table(
+		tableHeader(c('',colnames(my_data()[[2]]))),
+		tableFooter(c('',colnames(my_data()[[2]])))
+		))
+	})	
 
 
 	data_pp <- reactive({
 		if(input$rmout == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		}
 	
 		if (input$clust_pp_type == "raw_pp"){
@@ -296,17 +310,17 @@ shinyServer(function(input, output) {
 	return(list(df_outliers,p))
   }
   
-  Correlation <- function(){
-	if(input$rmout_corr == TRUE){
+	Correlation <- function(){
+		if(input$rmout_corr == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
-	}
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		}
 	
 	if (input$corr_type == "raw_corr"){
 	} else if (input$corr_type == "zscores_corr"){		
@@ -317,7 +331,6 @@ shinyServer(function(input, output) {
 	} else{
 		clean_data <- apply(clean_data,2,rank)
 	}
-  
   
 	data_t <- clean_data[,order(colnames(clean_data))]
 	
@@ -355,13 +368,13 @@ shinyServer(function(input, output) {
   Mean_Vectors <- function(){
 	if(input$rmout_mean == TRUE){
 			if (length(show_outliers$Rows) == 0){
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 				clean_data <- clean_data[-show_outliers$Rows]
 			}
 		} else{
-				clean_data <- my_data()[[1]][,unlist(col_sel())]
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 	}
   
 	num_vars <- dim(clean_data)[2]
@@ -379,9 +392,7 @@ shinyServer(function(input, output) {
 		output_mean <- output_mean / apply(clean_data,2,mad)
 		output_se <- rep(0, num_vars)
 	}
-	 
-	 
-	 
+	  
 	names_to_use <- colnames(clean_data)	 
 	 
 	df <- data.frame(names = names_to_use, means = output_mean, se = output_se)
@@ -409,12 +420,12 @@ shinyServer(function(input, output) {
    }
   
   output$MarginalPlot <- renderPlot({
-    p <- Marginals(my_data()[[1]][,unlist(col_sel())],input$col_names,input$show_type)
+    p <- Marginals(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$col_names,input$show_type)
     print(p)
   })
   
   output$Outliers <- renderPlot({
-	result <- Outliers(my_data()[[1]][,unlist(col_sel())],input$pval)
+	result <- Outliers(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$pval)
 	p <- result[2]
 	outlier_data <<- result[[1]]
 	print(p)
@@ -426,7 +437,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
-	p <- Data_Heatmap(my_data()[[1]][,unlist(col_sel())],input$heatmap_type,input$num_bin_data_heatmap)
+	p <- Data_Heatmap(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
@@ -452,6 +463,7 @@ shinyServer(function(input, output) {
   output$table <- DT::renderDataTable(
 	my_data()[[2]], 
 	class = 'row-border stripe hover',
+	container = table_cont(),
 	callback = JS("initTable(table)"),
 	filter = 'top', 
 	selection = 'none',

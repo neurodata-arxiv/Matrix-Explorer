@@ -1,5 +1,14 @@
-tr.row_selected_1 td{background-color:blue !important;}
-tr.row_selected_2 td{background-color:red !important;}
+tr.row_selected td{background-color:red;}
 
-td.col_selected_1 {background-color:MediumTurquoise  !important;}
-td.col_selected_2 {background-color:Beige  !important;}
+td.col_selected_1 {background-color:MediumTurquoise;}
+td.col_selected_2 {background-color:Yellow;}
+
+tr.row_selected td.col_selected_1 {background-color:MediumTurquoise;}
+tr.row_selected td.col_selected_2 {background-color:Yellow;}
+
+td.sorting_1 td.col_selected_1 {background-color:MediumTurquoise;}
+td.sorting_1 td.col_selected_2 {background-color:Yellow;}
+td.sorting_2 td.col_selected_1 {background-color:MediumTurquoise;}
+td.sorting_2 td.col_selected_2 {background-color:Yellow;}
+td.sorting_3 td.col_selected_1 {background-color:MediumTurquoise;}
+td.sorting_3 td.col_selected_2 {background-color:Yellow;}
