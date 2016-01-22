@@ -76,7 +76,9 @@ shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
 				list("Combined" = "comb",
 				"Histogram" = "hist", 
 				 "Kernel Density" = "kd")),
-	checkboxInput('marginal_condition_classes', 'Condition on classes?', FALSE)				 
+	checkboxInput('marginal_condition_classes', 'Condition on classes?', FALSE),
+	checkboxInput('marginal_mean', 'Show mean?', TRUE),
+	checkboxInput('marginal_median', 'Show median?', TRUE)			
   ),
 
   # Show a plot of the generated distribution

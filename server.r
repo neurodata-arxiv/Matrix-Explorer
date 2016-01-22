@@ -285,21 +285,32 @@ shinyServer(function(input, output) {
 	current_median <- median(data[,current_column])
 	
 	if(input$marginal_condition_classes){
-		aes_set <- aes_q(x = as.name(name), color = colnames(data)[col_class()])
+		data <- cbind(data,my_data()[[2]][col_class()])
+		aes_set <- aes_q(x = as.name(name), color = as.name(colnames(data)[col_class()]))		
 	} else{
 		aes_set <- aes_q(x = as.name(name))
 	}
 	
 	if (type == "hist"){
-		p <- ggplot(data, aes_set) + geom_histogram(fill = "deepskyblue2", alpha = 0.2, color = "white") + ggtitle("Marginal Distribution") + ylab('Counts')
+		p <- ggplot(data, aes_set) + geom_histogram(fill = "deepskyblue2", alpha = 0.2) + ylab('Counts')
 	} else if (type == "kd"){
-		p <- ggplot(data, aes_set) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
+		p <- ggplot(data, aes_set) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
 	}
 	else{
-		 p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", color = "white", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ggtitle("Marginal Distribution") + ylab('Density')
+		 p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
 	}
 	
-	p <- p + theme(text = element_text(size=20)) + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-6.6) + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-5)
+	p <- p + theme(text = element_text(size=20)) + ggtitle("Marginal Distribution") 
+	
+	if(input$marginal_mean){
+		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-6.6)		
+	}
+	
+	if(input$marginal_median){
+		p <- p + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, text=element_text(size=11), vjust=-0.4, hjust=-5)
+	}
+	
+	p
   }
   
   Outliers <- function(data,cutoff_in){
