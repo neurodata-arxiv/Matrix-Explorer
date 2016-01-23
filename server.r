@@ -3,6 +3,7 @@ library(ggplot2)
 library(robustbase)
 library(reshape)
 library(grid)
+library(htmltools)
 library(fastcluster)
 library(ggdendro)
 library(gtable)
@@ -41,17 +42,23 @@ shinyServer(function(input, output) {
 	})
 	
 	#Shiny reactive variables use lazy evaluation and are only evaluated when called. Shiny observers use eager evaluation and are called whenever changed. Take advantage of this to update the col_sel, col_class, and row_sel reactive variables as soon as input$col_sel, input$row_sel, and input$col_class are changed by the user. 
-	#observe({
-	#	col_sel()
-	#	col_class()
-	#	row_sel()
-	#})
+	observe({
+		col_sel()
+		#col_class()
+		row_sel()
+	})
+	
+	#Make sure table_cont() reevaluates once my_data() reevaluates
+	observe({
+		my_data()
+		#table_cont()
+	})
 	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
 	my_data <- reactive({
-		validate(need(input$data, message = FALSE)) 
+		validate(need(input$data, message = FALSE)) 	
 		inFile <- input$data 
 		if (is.null(inFile)){
 			return(NULL)
@@ -127,12 +134,12 @@ shinyServer(function(input, output) {
 		
 	})
 	
-	table_cont <- reactive({
-		htmltools::withTags(table(
-		tableHeader(c('',colnames(my_data()[[2]]))),
-		tableFooter(c('',colnames(my_data()[[2]])))
-		))
-	})	
+	# table_cont <- reactive({
+		# withTags(table(
+		# tableHeader(c('',colnames(my_data()[[2]]))),
+		# tableFooter(c('',colnames(my_data()[[2]])))
+		# ))
+	# })	
 
 
 	data_pp <- reactive({
@@ -420,23 +427,23 @@ shinyServer(function(input, output) {
 	} else{
 		output_mean <- colMedians(as.matrix(clean_data), na.rm = FALSE)
 		output_mean <- output_mean / apply(clean_data,2,mad)
-		output_se <- rep(0, num_vars)
-	}
-	  
-	names_to_use <- colnames(clean_data)	 
+		output_se[i] <- sd(clean_data[,i],na.rm = TRUE)
+	}	 
 	 
-	df <- data.frame(names = names_to_use, means = output_mean, se = output_se)
+	df <- data.frame(names = colnames(clean_data), means = output_mean, se = output_se)
 	 
-	if (input$mean_type == "Scatter"){
-		p <- ggplot(df, aes(x = names, y = means))
-		p <- p + geom_point() + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Raw Column Means') + coord_cartesian(ylim = ranges$y)
+	if (input$mean_type == "Scatter") {
+		p <- ggplot(melt(clean_data,0), aes(x = variable, y = value)) + geom_jitter()
+	} else if (input$mean_type == "Mean Vector"){
+		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + ylab("Mean") + xlab("") + ggtitle('Raw Column Means') 
 	} else if(input$mean_type== "Scatter with error bars"){
-		p <- ggplot(df, aes(x = names, y = means))
-		p <- p + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Raw Column Means') + coord_cartesian(ylim = ranges$y)
+		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("")  + ggtitle('Raw Column Means')
 	} else if(input$mean_type == "Box Plot"){
 		boxplot_data <- melt(clean_data)
-		p <- ggplot(boxplot_data,aes(x = variable, y = value)) + geom_boxplot() + ylab("Mean") + xlab("") + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + ggtitle('Boxplots') + coord_cartesian(ylim = ranges$y)
+		p <- p + ggplot(boxplot_data,aes(x = variable, y = value)) + geom_boxplot() + ylab("Mean") + xlab("") + ggtitle('Boxplots') 
 	}
+	
+	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + coord_cartesian(ylim = ranges$y)
   }
   
   Clustering <- function(){
@@ -490,10 +497,10 @@ shinyServer(function(input, output) {
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
   }, options= list(searching = FALSE))
   
-  output$table <- DT::renderDataTable(
+  output$table <- renderDataTable(
 	my_data()[[2]], 
 	class = 'row-border stripe hover order-column',
-	container = table_cont(),
+	#container = table_cont(),
 	callback = JS("initTable(table)"),
 	filter = 'top', 
 	selection = 'none',

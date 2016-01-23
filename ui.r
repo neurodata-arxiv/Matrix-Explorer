@@ -1,5 +1,5 @@
 # Define UI for application
-shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
+shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
   tabPanel("Data Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
@@ -122,7 +122,7 @@ shinyUI(navbarPage(title = "VX:Vector Explorer", id = "tabs",
 	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
 				label = "Select Type of Plot",
-				list("Scatter", "Scatter with error bars", "Box Plot")
+				list("Scatter", "Mean Vector","Mean Vector with error bars", "Box Plot","Violin Plot")
 				),
 	selectInput(inputId = "mean_pp_type",
 			label = "Select",

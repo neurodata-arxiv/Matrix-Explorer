@@ -2,6 +2,11 @@ var initTable = function(table) {
 		var col_sel = []; 
 		var col_class = "undefined"; 
 		var row_sel = [];
+		Shiny.onInputChange('row_sel',row_sel);
+		Shiny.onInputChange('col_sel',col_sel);
+		Shiny.onInputChange('col_class',col_class);
+
+	 
 	 
 		$('#table tbody').on( 'click.dt', 'td', function () {
 			var DT_rows_current = [];
