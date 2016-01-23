@@ -48,12 +48,6 @@ shinyServer(function(input, output) {
 		row_sel()
 	})
 	
-	#Make sure table_cont() reevaluates once my_data() reevaluates
-	observe({
-		my_data()
-		#table_cont()
-	})
-	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
@@ -422,25 +416,29 @@ shinyServer(function(input, output) {
 	if (input$mean_pp_type == "raw_mean"){
 		for (i in c(1:num_vars)){
 			output_mean[i] <- mean(clean_data[,i],na.rm = TRUE)	
-			output_se[i] <- sd(clean_data[,i],na.rm = TRUE)# / sqrt(length(data[,i]))
+			output_se[i] <- sd(clean_data[,i],na.rm = TRUE) / sqrt(length(clean_data[,i]))
 		}
 	} else{
 		output_mean <- colMedians(as.matrix(clean_data), na.rm = FALSE)
 		output_mean <- output_mean / apply(clean_data,2,mad)
-		output_se[i] <- sd(clean_data[,i],na.rm = TRUE)
+		clean_data <- sweep(clean_data,2,apply(clean_data,2,mad),`/`) 
+		for (i in c(1:num_vars)){
+			output_se[i] <- sd(clean_data[,i],na.rm = TRUE) / sqrt(length(clean_data[,i]))
+		}
 	}	 
 	 
 	df <- data.frame(names = colnames(clean_data), means = output_mean, se = output_se)
 	 
 	if (input$mean_type == "Scatter") {
-		p <- ggplot(melt(clean_data,0), aes(x = variable, y = value)) + geom_jitter()
+		p <- ggplot(melt(clean_data,0), aes(x = variable, y = value)) + geom_jitter() + xlab("") + ylab("Data Values") + ggtitle('Data Scatter Plot') 
 	} else if (input$mean_type == "Mean Vector"){
 		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + ylab("Mean") + xlab("") + ggtitle('Raw Column Means') 
-	} else if(input$mean_type== "Scatter with error bars"){
-		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("")  + ggtitle('Raw Column Means')
+	} else if(input$mean_type == "Mean Vector with standard error bars"){
+		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("") + ggtitle('Raw Column Means')
 	} else if(input$mean_type == "Box Plot"){
-		boxplot_data <- melt(clean_data)
-		p <- p + ggplot(boxplot_data,aes(x = variable, y = value)) + geom_boxplot() + ylab("Mean") + xlab("") + ggtitle('Boxplots') 
+		p <- ggplot(melt(clean_data,0),aes(x = variable, y = value)) + geom_boxplot() + ylab("Data Values") + xlab("") + ggtitle('Boxplots') 
+	} else{
+		p <- ggplot(melt(clean_data,0),aes(x = variable, y = value)) + geom_violin() + ylab("Data Values") + xlab("") + ggtitle('Violin Plots') 
 	}
 	
 	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + coord_cartesian(ylim = ranges$y)
@@ -462,7 +460,7 @@ shinyServer(function(input, output) {
   })
   
   output$Outliers <- renderPlot({
-	result <- Outliers(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$pval)
+	result <- Outliers(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$pval * 100)
 	p <- result[2]
 	outlier_data <<- result[[1]]
 	print(p)
@@ -509,16 +507,55 @@ shinyServer(function(input, output) {
   )
   
   
-  # output$corr_location_info <- renderDataTable({
-	# if (is.null(input$corr_plot_loc$x)) return()
-	# if (is.null(input$corr_plot_loc$y)) return()
+  output$corr_location_info <- renderDataTable({
+	if (is.null(input$corr_plot_loc$x)) return()
+	if (is.null(input$corr_plot_loc$y)) return()
   
-	# col_names <- colnames(my_data()[[1]])
+	if(input$rmout_corr == TRUE){
+		if (length(show_outliers$Rows) == 0){
+			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		} else{
+			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+			clean_data <- clean_data[-show_outliers$Rows]
+		}
+	} else{
+			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+	}
 	
-	# data.frame(Column = col_names[round(input$corr_plot_loc$x)],Row = col_names[round(input$corr_plot_loc$y)])
+	col_names <- sort(colnames(clean_data))
 	
-  # }, options= list(searching = FALSE))
+	location <- data.frame(
+	Column = col_names[round((input$corr_plot_loc$x - 0.1) / (0.86 - 0.1) * length(col_sel()) + 0.5)],
+	Row = col_names[round((input$corr_plot_loc$y - 0.2) / (0.96 - 0.2) * length(col_sel()) + 0.5)]
+	)
+	location
+	
+  }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
   
+  output$heatmap_location_info <- renderDataTable({
+	if (is.null(input$heatmap_plot_loc$x)) return()
+	if (is.null(input$heatmap_plot_loc$y)) return()
+  	
+	data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+	result <- data[,order(colnames(data))]
+	result <- na.omit(result)
+	
+	row_names	<- paste("Sample",c(1:length(row.names(result))), sep=" ")
+	col_names <- sort(colnames(result))
+	
+	location <- data.frame(
+	Column = col_names[round((input$heatmap_plot_loc$x - 0.09255) * length(col_sel()) / 0.699575 + 0.5)],
+	Row = row_names[round((input$heatmap_plot_loc$y - 0.045) / (0.9 - 0.045) * length(row_sel) + 0.5)]
+	)
+	location
+  }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
+  
+  
+  #output$download_plot <- downloadHandler(
+  #  filename = 'test.png',#function() { paste(input$dataset, '.png', sep='') },
+  #  content = function(file) {
+  #      ggsave(file, plot = output$MarginalPlot, device = "png")
+  #})
   
   observeEvent(my_data(), { 
     output$marginal_column <- renderUI({

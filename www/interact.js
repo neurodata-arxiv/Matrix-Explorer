@@ -83,3 +83,4 @@ var initTable = function(table) {
 		table.on('draw.dt', reselect_rows);
 		table.on('draw.dt', reselect_columns);
 }
+

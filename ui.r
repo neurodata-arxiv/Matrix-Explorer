@@ -60,10 +60,11 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				 "Z-scores" = "zscores_heatmap", 
 				 "Quantiles" = "quantiles_heatmap",
 				 "Ranks" = "rank_heatmap")),
-	sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1)
-  ),
+	sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1),
+	dataTableOutput(outputId="heatmap_location_info")
+    ),
 	mainPanel(
-		plotOutput("data_heatmap", width = "100%",height = "1800px")
+		plotOutput("data_heatmap", width = "100%",height = "1800px",hover = "heatmap_plot_loc")
 	)  
   ),
   tabPanel("Marginal Distributions", value = "MD",
@@ -78,7 +79,8 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				 "Kernel Density" = "kd")),
 	checkboxInput('marginal_condition_classes', 'Condition on classes?', FALSE),
 	checkboxInput('marginal_mean', 'Show mean?', TRUE),
-	checkboxInput('marginal_median', 'Show median?', TRUE)			
+	checkboxInput('marginal_median', 'Show median?', TRUE)
+	#downloadLink('download_plot', 'Download Plot')	
   ),
 
   # Show a plot of the generated distribution
@@ -90,7 +92,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
   ),
   tabPanel("Outlier Detection", value = "OA",
 	sidebarPanel(
-		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=10, value=5, step = 1),
+		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=0.1, value=0.05, step = 0.01),
 		dataTableOutput(outputId="outlier_info")
 	),
   mainPanel(
@@ -112,6 +114,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				list("Pearson's Correlation" = "p_corr",  
 				 "Euclidean Distance Matrix" = "dist_met")) ,
 	dataTableOutput(outputId="corr_location_info")
+	#verbatimTextOutput("corr_location_info")
   ),
   mainPanel(
 	plotOutput("Corr", width = "100%", height = "600px", hover = "corr_plot_loc")
@@ -122,7 +125,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
 				label = "Select Type of Plot",
-				list("Scatter", "Mean Vector","Mean Vector with error bars", "Box Plot","Violin Plot")
+				list("Scatter", "Mean Vector","Mean Vector with standard error bars", "Box Plot","Violin Plot")
 				),
 	selectInput(inputId = "mean_pp_type",
 			label = "Select",
