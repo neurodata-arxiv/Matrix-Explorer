@@ -544,7 +544,7 @@ shinyServer(function(input, output) {
 	#server = FALSE,
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
-	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = 'www/copy_csv_xls.swf'),scrollCollapse = TRUE)
+	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = paste(getwd(),'/www/copy_csv_xls.swf',sep = "")),scrollCollapse = TRUE)
   )
   
   
