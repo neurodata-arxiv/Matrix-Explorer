@@ -59,8 +59,18 @@ var initTable = function(table) {
 		var reselect_rows = function() {
 			var DT_rows_current = [];		
 			DT_rows_current = table.ajax.json().DT_rows_current;
-			alert('Loading Table')
-			alert(DT_rows_current)
+			
+			var bar
+			for (bar in table.ajax.json())
+			{
+				console.log("Foo has property " + bar);
+			}
+			console.log(table.ajax.json().recordTotal);
+			console.log(table.ajax.json().data);
+			console.log(table.ajax.json().DT_rows_all);
+			console.log(table.ajax.json().DT_rows_current);
+
+			
 			
 			if (row_sel.length === 0) return;
 			table.rows({page: 'current'}).every(function() {
