@@ -59,6 +59,8 @@ var initTable = function(table) {
 		var reselect_rows = function() {
 			var DT_rows_current = [];		
 			DT_rows_current = table.ajax.json().DT_rows_current;
+			alert('Loading Table')
+			alert(DT_rows_current)
 			
 			if (row_sel.length === 0) return;
 			table.rows({page: 'current'}).every(function() {
@@ -74,7 +76,7 @@ var initTable = function(table) {
 				if (col_sel.indexOf(this.index())!=-1) {
 					$(this.nodes()).addClass('col_selected_1');
 				} 
-				if (col_class.indexOf(this.index())!=-1){
+				if (col_class != this.index()){
 					$(this.nodes()).addClass('col_selected_2');
 				}
 			});
