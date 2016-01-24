@@ -12,7 +12,10 @@ var initTable = function(table) {
 			var DT_rows_current = [];
 			var colIdx = table.cell(this).index().column;
 			
-			DT_rows_current = table.ajax.json().DT_rows_current;
+			var data = table.ajax.json().data
+			for (var i = 0; i < data.length; i++) {
+				DT_rows_current[i] = data[i][0]
+			}
 			
 			if (colIdx == 0){
 				var colIdy = table.cell(this).index().row;
@@ -58,19 +61,12 @@ var initTable = function(table) {
 		
 		var reselect_rows = function() {
 			var DT_rows_current = [];		
-			DT_rows_current = table.ajax.json().DT_rows_current;
-			
-			var bar
-			for (bar in table.ajax.json())
-			{
-				console.log("Foo has property " + bar);
+			//DT_rows_current = table.ajax.json().DT_rows_current;
+			var data = table.ajax.json().data
+			for (var i = 0; i < data.length; i++) {
+				DT_rows_current[i] = data[i][0]
 			}
-			console.log(table.ajax.json().recordTotal);
-			console.log(table.ajax.json().data);
-			console.log(table.ajax.json().DT_rows_all);
-			console.log(table.ajax.json().DT_rows_current);
-
-			
+				
 			
 			if (row_sel.length === 0) return;
 			table.rows({page: 'current'}).every(function() {
