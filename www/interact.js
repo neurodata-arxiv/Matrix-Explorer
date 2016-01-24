@@ -61,7 +61,7 @@ var initTable = function(table) {
 		
 		var reselect_rows = function() {
 			var DT_rows_current = [];		
-			//DT_rows_current = table.ajax.json().DT_rows_current;
+
 			var data = table.ajax.json().data
 			for (var i = 0; i < data.length; i++) {
 				DT_rows_current[i] = data[i][0]

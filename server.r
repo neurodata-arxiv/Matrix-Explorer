@@ -303,8 +303,8 @@ shinyServer(function(input, output) {
 	current_median <- median(data[,current_column])
 	
 	if(input$marginal_condition_classes){
-		data <- cbind(data,my_data()[[2]][col_class()])
-		aes_set <- aes_q(x = as.name(name), color = as.name(colnames(data)[col_class()]))		
+		data <- cbind(data,Class = my_data()[[2]][row_sel(),col_class()])#Check this
+		aes_set <- aes_q(x = as.name(name), color = as.name('Class'))#This looks wrong		
 	} else{
 		aes_set <- aes_q(x = as.name(name))
 	}
@@ -335,7 +335,7 @@ shinyServer(function(input, output) {
   
 	num_cols <- dim(data)[1]
 
-	mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data), ,tol=1e-20)
+	mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
 	
 	cutoff <- qchisq(1 - cutoff_in / 100, dim(data)[2], ncp = 0, lower.tail = TRUE, log.p = FALSE)
 	
