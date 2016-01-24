@@ -61,7 +61,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				 "Quantiles" = "quantiles_heatmap",
 				 "Ranks" = "rank_heatmap")),
 	sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1),
-	dataTableOutput(outputId="heatmap_location_info")
+	DT::dataTableOutput(outputId="heatmap_location_info")
     ),
 	mainPanel(
 		plotOutput("data_heatmap", width = "100%",height = "1800px",hover = "heatmap_plot_loc")
@@ -93,7 +93,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
   tabPanel("Outlier Detection", value = "OA",
 	sidebarPanel(
 		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=0.1, value=0.05, step = 0.01),
-		dataTableOutput(outputId="outlier_info")
+		DT::dataTableOutput(outputId="outlier_info")
 	),
   mainPanel(
     plotOutput("Outliers")
@@ -113,7 +113,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 				label = "Select Metric",
 				list("Pearson's Correlation" = "p_corr",  
 				 "Euclidean Distance Matrix" = "dist_met")) ,
-	dataTableOutput(outputId="corr_location_info")
+	DT::dataTableOutput(outputId="corr_location_info")
 	#verbatimTextOutput("corr_location_info")
   ),
   mainPanel(

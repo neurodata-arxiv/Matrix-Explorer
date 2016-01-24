@@ -49,7 +49,7 @@ shinyServer(function(input, output) {
 	})
 	
 	observe({
-		table_cont()
+		#table_cont()
 		my_data()
 	})
 	
@@ -133,12 +133,12 @@ shinyServer(function(input, output) {
 		
 	})
 	
-	table_cont <- reactive({
-		withTags(table(
-		tableHeader(c('',colnames(my_data()[[2]]))),
-		tableFooter(c('',colnames(my_data()[[2]])))
-		))
-	})	
+	# table_cont <- reactive({
+		# withTags(table(
+		# tableHeader(c('',colnames(my_data()[[2]]))),
+		# tableFooter(c('',colnames(my_data()[[2]])))
+		# ))
+	# })	
 
 
 	data_pp <- reactive({
@@ -531,25 +531,24 @@ shinyServer(function(input, output) {
 	print(p)
   })
   
-  output$outlier_info <- renderDataTable({	
+  output$outlier_info <- DT::renderDataTable({	
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
   }, options= list(searching = FALSE))
   
   output$table <- DT::renderDataTable(
-	datatable(
 	my_data()[[2]],
 	class = 'row-border stripe hover order-column',
-	container = table_cont(),
+	#container = table_cont(),
 	callback = JS("initTable(table)"),
 	filter = 'top', 
 	#server = FALSE,
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
 	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = 'www/copy_csv_xls.swf'),scrollCollapse = TRUE)
-  ))
+  )
   
   
-  output$corr_location_info <- renderDataTable({
+  output$corr_location_info <- DT::renderDataTable({
 	if (is.null(input$corr_plot_loc$x)) return()
 	if (is.null(input$corr_plot_loc$y)) return()
   
@@ -574,7 +573,7 @@ shinyServer(function(input, output) {
 	
   }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
   
-  output$heatmap_location_info <- renderDataTable({
+  output$heatmap_location_info <- DT::renderDataTable({
 	if (is.null(input$heatmap_plot_loc$x)) return()
 	if (is.null(input$heatmap_plot_loc$y)) return()
   	
