@@ -48,6 +48,11 @@ shinyServer(function(input, output) {
 		row_sel()
 	})
 	
+	observe({
+		table_cont()
+		my_data()
+	})
+	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
@@ -128,12 +133,12 @@ shinyServer(function(input, output) {
 		
 	})
 	
-	# table_cont <- reactive({
-		# withTags(table(
-		# tableHeader(c('',colnames(my_data()[[2]]))),
-		# tableFooter(c('',colnames(my_data()[[2]])))
-		# ))
-	# })	
+	table_cont <- reactive({
+		withTags(table(
+		tableHeader(c('',colnames(my_data()[[2]]))),
+		tableFooter(c('',colnames(my_data()[[2]])))
+		))
+	})	
 
 
 	data_pp <- reactive({
@@ -272,9 +277,21 @@ shinyServer(function(input, output) {
 	g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
 	g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
 
-
+	#print(ggplot_build(p1))
+	
 	grid.newpage()
 	grid.draw(g)
+	
+	# grid.ls(view=TRUE,grob=FALSE)
+	# current.vpTree()
+	# seekViewport('panel.3-4-3-4')
+	# a <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	# print(a)
+	
+	# dev.off()
+	# grid.newpage()
+	# grid.draw(g)
+	
   }
 	
   Marginals <- function(data,name,type){
@@ -468,7 +485,30 @@ shinyServer(function(input, output) {
   
   output$Corr <- renderPlot({
 	p <- Correlation()
+	
 	print(p)
+	
+	#seekViewport('spacer.4-3-4-3')
+	#axis_width <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	#axis_heigh <- convertHeigh(unit(1,'npc'), 'inch', TRUE)
+	
+	# seekViewport('panel.3-4-3-4')
+	# plot_width <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	# plot_height <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	
+	# seekViewport('layout')
+	# layout_width <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	# layout_height <- convertWidth(unit(1,'npc'), 'inch', TRUE)
+	
+	
+	#print(axis_width)
+	#print(axis_height)
+	# print(plot_width)
+	# print(plot_height)
+	# print(layout_width)
+	# print(layout_height)
+	
+	# print(c(plot_width,plot_height,current.vpTree(all=TRUE)))
   })
   
   output$data_heatmap <- renderPlot({
@@ -495,16 +535,18 @@ shinyServer(function(input, output) {
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
   }, options= list(searching = FALSE))
   
-  output$table <- renderDataTable(
-	my_data()[[2]], 
+  output$table <- DT::renderDataTable(
+	datatable(
+	my_data()[[2]],
 	class = 'row-border stripe hover order-column',
-	#container = table_cont(),
+	container = table_cont(),
 	callback = JS("initTable(table)"),
 	filter = 'top', 
+	#server = FALSE,
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
 	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = 'www/copy_csv_xls.swf'),scrollCollapse = TRUE)
-  )
+  ))
   
   
   output$corr_location_info <- renderDataTable({
