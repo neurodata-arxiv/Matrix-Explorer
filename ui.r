@@ -1,6 +1,6 @@
 # Define UI for application
 shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
-  tabPanel("Data Upload", value = "D",
+  tabPanel("Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
 		tags$hr(),
@@ -52,7 +52,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 		tags$head(includeScript("www/interact.js"))
 	)  
   ),
- tabPanel("Data Heatmap", value = "HM",
+ tabPanel("Heatmap", value = "HM",
 	sidebarPanel(			
 	selectInput(inputId = "heatmap_type",
 				label = "Select",
@@ -67,7 +67,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 		plotOutput("data_heatmap", width = "100%",height = "1800px",hover = "heatmap_plot_loc")
 	)  
   ),
-  tabPanel("Marginal Distributions", value = "MD",
+  tabPanel("Sample Summary", value = "MD",
   
   # Sidebar with a slider input for number of observations
   sidebarPanel(
@@ -90,7 +90,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
     plotOutput("MarginalPlot")
   )  
   ),
-  tabPanel("Outlier Detection", value = "OA",
+  tabPanel("Outliers", value = "OA",
 	sidebarPanel(
 		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=0.1, value=0.05, step = 0.01),
 		DT::dataTableOutput(outputId="outlier_info")
@@ -100,7 +100,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 		
   )
   ),
-  tabPanel("Correlation Analysis", value = "CA",
+  tabPanel("Correlation", value = "CA",
   sidebarPanel(	
 	checkboxInput('rmout_corr', 'Remove Outliers', TRUE),
 	selectInput(inputId = "corr_type",
@@ -120,7 +120,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
 	plotOutput("Corr", width = "100%", height = "600px", hover = "corr_plot_loc")
   )
    ),
-  tabPanel("Plots of Mean Vector", value = "MV",
+  tabPanel("Feature Summary", value = "MV",
 	sidebarPanel(
 	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
@@ -139,7 +139,7 @@ shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
           resetOnNew = TRUE))
   )
   ),  
-  tabPanel("2D-Embedding and Clustering", value = "C",
+  tabPanel("Embedding & Clustering", value = "C",
   fluidPage(
 	plotOutput("Clust"),
   fluidRow(
