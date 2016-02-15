@@ -591,13 +591,6 @@ shinyServer(function(input, output) {
 	location
   }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
   
-  
-  #output$download_plot <- downloadHandler(
-  #  filename = 'test.png',#function() { paste(input$dataset, '.png', sep='') },
-  #  content = function(file) {
-  #      ggsave(file, plot = output$MarginalPlot, device = "png")
-  #})
-  
   observeEvent(my_data(), { 
     output$marginal_column <- renderUI({
 	selectInput(inputId = "col_names", label = "Select", colnames(my_data()[[1]][,unlist(col_sel())]))
