@@ -1,5 +1,5 @@
 # Define UI for application
-shinyUI(navbarPage("VX:Vector Explorer", id = "tabs",
+shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
   tabPanel("Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
