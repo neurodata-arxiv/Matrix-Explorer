@@ -1,4 +1,4 @@
-# NeuroData's Vector Explorer
+# NeuroData's Matrix Explorer
 Web-based vector analytics and some visualization
 
 To run:
