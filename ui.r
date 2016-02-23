@@ -45,11 +45,9 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
 				 "Yellow-Green-Blue" = "YlGnBu",
 				 "Yellow-Orange-Brown" = "YlOrBr",
 				 "Yellow-Orange-Red" = "YlOrRd")),
-		strong("Code:"),
-		a("https://github.com/neurodata/Matrix-Explorer"),
+		strong(a("Code",href = "https://github.com/neurodata/Matrix-Explorer")),
 		br(),
-		strong("Report issues:"),
-		a("https://github.com/neurodata/Matrix-Explorer/issues")
+		strong(a("Report Issues", href = "https://github.com/neurodata/Matrix-Explorer/issues"))
     ),
 	mainPanel(
 		DT::dataTableOutput(outputId="table"),
