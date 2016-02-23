@@ -26,12 +26,13 @@ shinyServer(function(input, output) {
 	})
 	
 	col_class <- reactive({
-		if (input$col_class %in% my_data()[[3]]){
-			input$col_class
-		} else {
-			NA
-		}
-		
+		#if (input$col_class %in% my_data()[[3]]){
+		#	input$col_class
+		#	print(input$col_class)
+		#} else {
+		#	NA
+		#}
+		input$col_class	
 	})
 	
 	row_sel <- reactive({
@@ -65,9 +66,7 @@ shinyServer(function(input, output) {
 		}
 		
 		df <- fread(inFile$datapath, header = input$header, sep = input$sep, verbose = TRUE, na.strings=c("NA","N/A","null"),data.table = FALSE)
-		#for (j in which(sapply(df, class)=='character')) set(df, i=NULL, j=j, value=as.factor(df[[j]]))
 		dataTypes <- sapply(df, class)
-		print(dataTypes)
 		
 		if(input$proc){
 			df <- na.omit(df)
@@ -80,6 +79,7 @@ shinyServer(function(input, output) {
 			dataTypes <- dataTypes[-f_indi]
 		}
 		#View(df)
+		print(f_indi)
 		data <- list(df,data_with_factors,f_indi)
 		
 	})
@@ -179,7 +179,6 @@ shinyServer(function(input, output) {
 	)
 	
   Data_Heatmap <- function(data, type, bins){
-    print(colnames(data))
 	result <- data[,order(colnames(data))]
 	result <- na.omit(result)
 	row.names(result) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
@@ -250,12 +249,14 @@ shinyServer(function(input, output) {
 	validate(need(name, message=FALSE))
 	
 	current_column <- which(colnames(data) == name)
+	print(current_column)
+	print(data)
 
 	current_mean <- mean(data[,current_column])
 	current_median <- median(data[,current_column])
 	
 	if(input$marginal_condition_classes){
-		data <- cbind(data,Class = my_data()[[2]][row_sel(),col_class()])#Check this
+		data <- cbind(data,Class = factor(my_data()[[2]][row_sel(),col_class()]))#Check this
 		aes_set <- aes_q(x = as.name(name), color = as.name('Class'))#This looks wrong		
 	} else{
 		aes_set <- aes_q(x = as.name(name))
