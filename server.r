@@ -274,11 +274,11 @@ shinyServer(function(input, output) {
 	p <- p + theme(text = element_text(size=20)) + ggtitle("Marginal Distribution") 
 	
 	if(input$marginal_mean){
-		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, size=11, vjust=-0.4, hjust=-6.6)		
+		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-6.6)		
 	}
 	
 	if(input$marginal_median){
-		p <- p + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, size=11, vjust=-0.4, hjust=-5)
+		p <- p + geom_vline(xintercept = current_median, color = "red") +  geom_text(x = current_median , label="Median", y = 0 , colour="red", angle=90, vjust=-0.4, hjust=-5)
 	}
 	
 	p
