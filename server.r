@@ -10,8 +10,9 @@ library(gtable)
 library(tsne)
 library(RColorBrewer)
 library(DT)
+library(data.table)
 
-options(shiny.maxRequestSize = 50*1024^2)
+options(shiny.maxRequestSize = 2000*1024^2)
 
 shinyServer(function(input, output) {
 
@@ -62,74 +63,24 @@ shinyServer(function(input, output) {
 		if (is.null(inFile)){
 			return(NULL)
 		}
-		df <- read.csv(inFile$datapath, header = input$header, sep = input$sep,quote = input$quote, dec = ".")
-		dataTypes <- vector(mode="character", length = dim(df)[2])  # define a vector to hold each columns data type 
 		
-		
-		# we loop through each column and determine its type 
-		for (i in 1:dim(df)[2]){
-			# first task is to scrub the data 
-			df[,i] <- gsub(" ", "", df[,i]) # remove spaces 
-			#df[,i] <- tolower(df[,i])#Convert to lowercase
-			
-			# check to make sure there are no Infs 
-			bad_indi <- which(is.infinite(df[,i])) #CHECK THIS
-			if (length(bad_indi) > 0 ) # we found some Nas 
-			{
-				df[bad_indi,i] <- NA
-			}
-    
-			na_indi <- sum(is.na(df[,i])) # get initial count of na indices 
-    
-			# check if it is numeric by converting to it 
-			test <- df[,i] # holder variable 
-			test <- as.numeric(test) 
-			na_indi2 <- sum(is.na(test))
-    
-			if (na_indi2 > na_indi) #must be characters 
-			{
-				dataTypes[i] <- "character"
-      
-			} else { 
-				dataTypes[i] <- "double"
-				df[,i] <- test
-			}
-		}
+		df <- fread(inFile$datapath, header = input$header, sep = input$sep, verbose = TRUE, na.strings=c("NA","N/A","null"),data.table = FALSE)
+		#for (j in which(sapply(df, class)=='character')) set(df, i=NULL, j=j, value=as.factor(df[[j]]))
+		dataTypes <- sapply(df, class)
+		print(dataTypes)
 		
 		if(input$proc){
 			df <- na.omit(df)
 		}
-  
-		# we now look to convert to factors 
-		for (i in 1:(dim(df)[2])){
-			if (dataTypes[i] == "character"){
-				dataTypes[i] = "factor"
-				df[,i] <- as.factor(df[,i])
-				if (nlevels(df[,i]) > 10000) # bad column and we delete 
-					{
-						dataTypes[i] <- 0 # mark to remove data type
-					}
-      
-			}
-		}
-		
-		
-		
-		r_indi <- which(dataTypes == 0)	
-		if(length(r_indi) > 0) {
-			df <- df[,-r_indi]
-			dataTypes <- dataTypes[-r_indi]
-		}
-		#View(df)
 		 
 		data_with_factors <- df
-		f_indi <- which(dataTypes == "factor")	
+		f_indi <- which(dataTypes == "character")	
 		if(length(f_indi) > 0) {
 			df <- df[,-f_indi]
 			dataTypes <- dataTypes[-f_indi]
 		}
 		#View(df)
-		data <- list(df,data_with_factors,f_indi,r_indi)
+		data <- list(df,data_with_factors,f_indi)
 		
 	})
 	
@@ -228,6 +179,7 @@ shinyServer(function(input, output) {
 	)
 	
   Data_Heatmap <- function(data, type, bins){
+    print(colnames(data))
 	result <- data[,order(colnames(data))]
 	result <- na.omit(result)
 	row.names(result) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
@@ -512,6 +464,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
+    print(my_data()[[1]])
 	p <- Data_Heatmap(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
@@ -544,7 +497,7 @@ shinyServer(function(input, output) {
 	#server = FALSE,
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
-	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('www')),scrollCollapse = TRUE)
+	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('www')),scrollCollapse = TRUE, deferRender = TRUE, scrollX = TRUE)
   )
   
   
