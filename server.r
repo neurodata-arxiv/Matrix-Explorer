@@ -130,6 +130,68 @@ shinyServer(function(input, output) {
 		list(df,rv)
 	})
 	
+	heatmap_comp <- reactive({
+		if(input$precomp){
+			data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+			type <- input$heatmap_type
+			
+			result_raw <- data[,order(colnames(data))]
+			result_raw <- na.omit(result_raw)
+			row.names(result_raw) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
+			
+			result_zscores <- scale(result_raw, center = TRUE, scale = TRUE)
+			
+			result_q <- apply(result_raw,2,rank)
+			result_q <- result_q / max(result_q)
+			
+			result_r <- apply(result_raw,2,rank)
+			
+			for(i in c('raw','zscores','q','r')){
+				input <- eval(parse(text = paste('result_',i)))
+			
+				dd.col <- as.dendrogram(hclust(dist(as.matrix(input))))
+				dd.row <- as.dendrogram(hclust(dist(t(as.matrix(input)))))
+
+				col.ord <- order.dendrogram(dd.col)
+				row.ord <- order.dendrogram(dd.row)
+			
+				assign(paste('temp_',i),melt(as.matrix(input[col.ord, row.ord])))
+				assign(paste('temp_',i,'$X1'),factor(temp_raw$X1, levels = row.names(input)[col.ord]))
+				assign(paste('temp_',i,'$lev'),cut(temp$value,bins))
+			
+				assign(paste('ddata_x_','i'),dendro_data(dd.row))
+				assign(paste('ddata_y_','i'),dendro_data(dd.col))
+			}
+					
+			output <- list(result_raw,result_zscores,result_q,result_r,temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r)
+		} else{
+			
+		}
+	})
+	
+	marginal_comp <- reactive({
+		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		
+		mean_mat <- rep(NA,length(unlist(col_sel())))
+		median_mat <- rep(NA,length(unlist(col_sel())))
+		
+		for(i in c(1:length(unlist(col_sel())))){
+			mean_mat[i] <- mean(data[,current_column])
+			median_mat[i] <- median(data[,current_column])
+		}
+		
+		output <- list(mean_mat,median_mat)		
+	})
+	
+	run_data <- reactive({
+		if(input$precomp){
+			heatmap_comp()
+			pca_comp()
+			tsne_comp()
+			marginal_comp()
+		}
+	})
+	
 	clust <- reactive({
 		if (input$embed_type == "PCA") {
 			df <- pca_comp()[[1]]
@@ -178,43 +240,25 @@ shinyServer(function(input, output) {
 		axis.ticks.length = unit(0, "cm")
 	)
 	
-  Data_Heatmap <- function(data, type, bins){
-	result <- data[,order(colnames(data))]
-	result <- na.omit(result)
-	row.names(result) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
+	theme_offset <- theme(
+		title = element_text(size=20), 
+		plot.title = element_text(vjust = 2), 
+		axis.title.x = element_text(vjust = -0.5), 
+		axis.title.y = element_text(vjust = 2)
+	)
 	
-	if (type == "raw_heatmap"){
-	} else if (type == "zscores_heatmap"){		
-		result <- scale(result, center = TRUE, scale = TRUE)
-	} else if (type == "quantiles_heatmap"){
-		result <- apply(result,2,rank)
-		result <- result / max(result)
-	} else{
-		result <- apply(result,2,rank)
-	}
-	
-	dd.col <- as.dendrogram(hclust(dist(as.matrix(result))))
-	dd.row <- as.dendrogram(hclust(dist(t(as.matrix(result)))))
-
-	col.ord <- order.dendrogram(dd.col)
-	row.ord <- order.dendrogram(dd.row)
-	
-	temp <- melt(as.matrix(result[col.ord, row.ord]))
-	temp$X1 <- factor(temp$X1, levels = row.names(result)[col.ord])
-	temp$lev <- cut(temp$value,bins)
-	
-	ddata_x <- dendro_data(dd.row)
-	ddata_y <- dendro_data(dd.col)
-		
-	p1 <- ggplot(temp, aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
+  Data_Heatmap <- function(bins){
+	output <- heatmap_comp() #output <- list(result_raw,result_zscores,result_q,result_r,temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r)
+  
+	p1 <- ggplot(output[[1]], aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
 	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))# + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10))
 		
-	p2 <- ggplot(segment(ddata_x)) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
+	p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 		
-	p3 <- ggplot(segment(ddata_y)) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
+	p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 		
-	cb_df <- data.frame(X1 = 1,X2 = temp$lev)
+	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
 	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
 
 	gA <- ggplotGrob(p1)
@@ -249,11 +293,16 @@ shinyServer(function(input, output) {
 	validate(need(name, message=FALSE))
 	
 	current_column <- which(colnames(data) == name)
-	print(current_column)
-	print(data)
 
-	current_mean <- mean(data[,current_column])
-	current_median <- median(data[,current_column])
+	if(input$precomp){
+		result <- marginal_comp #list(mean_mat,median_mat)	
+		current_mean <- result[[1]][current_column]
+		current_median <- result[[2]][current_column]
+		
+	} else{
+		current_mean <- mean(data[,current_column])
+		current_median <- median(data[,current_column])
+	}
 	
 	if(input$marginal_condition_classes){
 		data <- cbind(data,Class = factor(my_data()[[2]][row_sel(),col_class()]))#Check this
@@ -271,10 +320,10 @@ shinyServer(function(input, output) {
 		 p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
 	}
 	
-	p <- p + theme(title = element_text(size=20)) + ggtitle("Marginal Distribution") 
+	p <- p + theme_offset + ggtitle("Marginal Distribution") 
 	
 	if(input$marginal_mean){
-		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(size = 8, x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.6)		
+		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(size = 8, x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.65)		
 	}
 	
 	if(input$marginal_median){
@@ -465,8 +514,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
-    print(my_data()[[1]])
-	p <- Data_Heatmap(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$heatmap_type,input$num_bin_data_heatmap)
+	p <- Data_Heatmap(input$num_bin_data_heatmap)
 	print(p)
   })
   
