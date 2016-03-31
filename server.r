@@ -46,13 +46,12 @@ shinyServer(function(input, output) {
 	#Shiny reactive variables use lazy evaluation and are only evaluated when called. Shiny observers use eager evaluation and are called whenever changed. Take advantage of this to update the col_sel, col_class, and row_sel reactive variables as soon as input$col_sel, input$row_sel, and input$col_class are changed by the user. 
 	observe({
 		col_sel()
-		#col_class()
 		row_sel()
 	})
 	
 	observe({
-		#table_cont()
 		my_data()
+		run_data()
 	})
 	
 	ranges <- reactiveValues(y = NULL)
@@ -65,7 +64,7 @@ shinyServer(function(input, output) {
 			return(NULL)
 		}
 		
-		df <- fread(inFile$datapath, header = input$header, sep = input$sep, verbose = TRUE, na.strings=c("NA","N/A","null"),data.table = FALSE)
+		df <- fread(inFile$datapath, header = input$header, sep = input$sep, na.strings=c("NA","N/A","null"),data.table = FALSE)
 		dataTypes <- sapply(df, class)
 		
 		if(input$proc){
@@ -78,19 +77,10 @@ shinyServer(function(input, output) {
 			df <- df[,-f_indi]
 			dataTypes <- dataTypes[-f_indi]
 		}
-		#View(df)
-		print(f_indi)
+		
 		data <- list(df,data_with_factors,f_indi)
 		
 	})
-	
-	# table_cont <- reactive({
-		# withTags(table(
-		# tableHeader(c('',colnames(my_data()[[2]]))),
-		# tableFooter(c('',colnames(my_data()[[2]])))
-		# ))
-	# })	
-
 
 	data_pp <- reactive({
 		if(input$rmout == TRUE){
@@ -116,79 +106,121 @@ shinyServer(function(input, output) {
 		clean_data
 	})
 	
-	pca_comp <- reactive({	
+	pca_precomp <- reactive({	
 		fit <- prcomp(data_pp(), center=TRUE, scale = FALSE)
 		df <- data.frame(x = fit$x[,1], y = fit$x[,2])
 		rv <- fit[1]
 		list(df,rv)
 	})
 	
-	tsne_comp <- reactive({		
+	tsne_precomp <- reactive({		
 		fit <- as.data.frame(tsne(data_pp(), perplexity=50))
 		df <- data.frame(x = fit$V1, y = fit$V2)
 		rv <- NULL
 		list(df,rv)
 	})
 	
-	heatmap_comp <- reactive({
-		if(input$precomp){
-			data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-			type <- input$heatmap_type
-			
-			result_raw <- data[,order(colnames(data))]
-			result_raw <- na.omit(result_raw)
-			row.names(result_raw) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
-			
-			result_zscores <- scale(result_raw, center = TRUE, scale = TRUE)
-			
-			result_q <- apply(result_raw,2,rank)
-			result_q <- result_q / max(result_q)
-			
-			result_r <- apply(result_raw,2,rank)
-			
-			for(i in c('raw','zscores','q','r')){
-				input <- eval(parse(text = paste('result_',i)))
-			
-				dd.col <- as.dendrogram(hclust(dist(as.matrix(input))))
-				dd.row <- as.dendrogram(hclust(dist(t(as.matrix(input)))))
+	heatmap_precomp <- reactive({
+		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		
+		result_raw <- data[,order(colnames(data))]
+		result_raw <- na.omit(result_raw)
+		row.names(result_raw) <- paste("Sample",c(1:length(row.names(result_raw))), sep=" ")
+		
+		result_zscores <- scale(result_raw, center = TRUE, scale = TRUE)
+		
+		result_q <- apply(result_raw,2,rank)
+		result_q <- result_q / max(result_q)
+		
+		result_r <- apply(result_raw,2,rank)
+		
+		for(i in c('raw','zscores','q','r')){
+			input_res <- eval(parse(text = paste('result_',i,sep = "")))
+		
+			dd.col <- as.dendrogram(hclust(dist(as.matrix(input_res))))
+			dd.row <- as.dendrogram(hclust(dist(t(as.matrix(input_res)))))
 
-				col.ord <- order.dendrogram(dd.col)
-				row.ord <- order.dendrogram(dd.row)
-			
-				assign(paste('temp_',i),melt(as.matrix(input[col.ord, row.ord])))
-				assign(paste('temp_',i,'$X1'),factor(temp_raw$X1, levels = row.names(input)[col.ord]))
-				assign(paste('temp_',i,'$lev'),cut(temp$value,bins))
-			
-				assign(paste('ddata_x_','i'),dendro_data(dd.row))
-				assign(paste('ddata_y_','i'),dendro_data(dd.col))
-			}
-					
-			output <- list(result_raw,result_zscores,result_q,result_r,temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r)
-		} else{
-			
+			col.ord <- order.dendrogram(dd.col)
+			row.ord <- order.dendrogram(dd.row)
+		
+			assign(paste('temp_',i,sep=""),melt(as.matrix(input_res[col.ord, row.ord])))
+			assign(paste('temp_',i,'$X1',sep=""),factor(eval(parse(text = paste('temp_',i,'$X1',sep=""))), levels = row.names(input_res)[col.ord]))
+			assign(paste('lev_',i,sep=""),lapply(2:16, function(j) cut(eval(parse(text = paste('temp_',i,'$value',sep=""))),j)))
+			assign(paste('ddata_x_',i,sep=""),dendro_data(dd.row))
+			assign(paste('ddata_y_',i,sep=""),dendro_data(dd.col))
 		}
+	
+		print('Fired')
+		
+		output <- list(temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r,lev_raw,lev_zscores,lev_q,lev_r)
+	})
+			
+	heatmap_comp <- reactive({		
+		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		type <- input$heatmap_type
+		
+		result <- data[,order(colnames(data))]
+		result <- na.omit(result)
+		row.names(result) <- paste("Sample",c(1:length(row.names(result))), sep=" ")
+	
+		if (type == "raw_heatmap"){
+		} else if (type == "zscores_heatmap"){		
+			result <- scale(result, center = TRUE, scale = TRUE)
+		} else if (type == "quantiles_heatmap"){
+			result <- apply(result,2,rank)
+			result <- result / max(result)
+		} else{
+			result <- apply(result,2,rank)
+		}
+			
+		dd.col <- as.dendrogram(hclust(dist(as.matrix(result))))
+		dd.row <- as.dendrogram(hclust(dist(t(as.matrix(result)))))
+
+		col.ord <- order.dendrogram(dd.col)
+		row.ord <- order.dendrogram(dd.row)
+	
+		temp <- melt(as.matrix(result[col.ord, row.ord]))
+		
+		
+		temp$X1 <- factor(temp$X1, levels = row.names(result)[col.ord])
+		temp$lev <- cut(temp$value,input$num_bin_data_heatmap)
+		#View(temp)
+	
+		ddata_x <- dendro_data(dd.row)
+		ddata_y <- dendro_data(dd.col)
+			
+		output <- list(temp,ddata_x,ddata_y)
 	})
 	
-	marginal_comp <- reactive({
+	marginal_precomp <- reactive({
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		
 		mean_mat <- rep(NA,length(unlist(col_sel())))
 		median_mat <- rep(NA,length(unlist(col_sel())))
 		
 		for(i in c(1:length(unlist(col_sel())))){
-			mean_mat[i] <- mean(data[,current_column])
-			median_mat[i] <- median(data[,current_column])
+			mean_mat[i] <- mean(data[,i])
+			median_mat[i] <- median(data[,i])
 		}
 		
 		output <- list(mean_mat,median_mat)		
 	})
 	
+	outlier_precomp <- reactive({
+		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		num_cols <- dim(data)[1]
+
+		mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
+		mahalanobis_dist
+	})
+	
 	run_data <- reactive({
 		if(input$precomp){
-			heatmap_comp()
-			pca_comp()
-			tsne_comp()
-			marginal_comp()
+			heatmap_precomp()
+			#pca_precomp()
+			#tsne_precomp()
+			marginal_precomp()
+			outlier_precomp()
 		}
 	})
 	
@@ -247,18 +279,50 @@ shinyServer(function(input, output) {
 		axis.title.y = element_text(vjust = 2)
 	)
 	
-  Data_Heatmap <- function(bins){
-	output <- heatmap_comp() #output <- list(result_raw,result_zscores,result_q,result_r,temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r)
+  Data_Heatmap <- function(type,bins){
+	
+	if(input$precomp){
+		pre_output <- isolate(heatmap_precomp()) #list(temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r,lev_raw,lev_zscores,lev_q,lev_r) 
+		output <- list(NA,NA,NA)
+		if (type == "raw_heatmap"){	
+			output[[1]] <- pre_output[[1]]
+			lev <- pre_output[[13]][[bins - 1]]
+			output[[1]] <- cbind(output[[1]],lev)
+			output[[2]] <- pre_output[[5]]
+			output[[3]] <- pre_output[[9]]
+		} else if (type == "zscores_heatmap"){		
+			output[[1]] <- pre_output[[2]]
+			lev <- pre_output[[14]][[bins - 1]]
+			output[[1]] <- cbind(output[[1]],lev)
+			output[[2]] <- pre_output[[6]]
+			output[[3]] <- pre_output[[10]]
+		} else if (type == "quantiles_heatmap"){
+			output[[1]] <- pre_output[[3]]
+			lev <- pre_output[[15]][[bins - 1]]
+			output[[1]] <- cbind(output[[1]],lev)
+			output[[2]] <- pre_output[[7]]
+			output[[3]] <- pre_output[[11]]
+		} else{
+			output[[1]] <- pre_output[[4]]
+			lev <- pre_output[[16]][[bins - 1]]
+			output[[1]] <- cbind(output[[1]],lev)
+			output[[2]] <- pre_output[[8]]
+			output[[3]] <- pre_output[[12]]
+		}
+	} else{
+		output <- heatmap_comp() #output <- list(temp,ddata_x,ddata_y)
+	}
   
 	p1 <- ggplot(output[[1]], aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
-	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))# + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10))
+	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
 		
 	p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 		
 	p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
-		
+	
 	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
+	
 	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
 
 	gA <- ggplotGrob(p1)
@@ -271,22 +335,9 @@ shinyServer(function(input, output) {
 	g <- gtable_add_rows(g, unit(3,"in"), 0)
 	g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
 	g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
-
-	#print(ggplot_build(p1))
 	
 	grid.newpage()
-	grid.draw(g)
-	
-	# grid.ls(view=TRUE,grob=FALSE)
-	# current.vpTree()
-	# seekViewport('panel.3-4-3-4')
-	# a <- convertWidth(unit(1,'npc'), 'inch', TRUE)
-	# print(a)
-	
-	# dev.off()
-	# grid.newpage()
-	# grid.draw(g)
-	
+	grid.draw(g)	
   }
 	
   Marginals <- function(data,name,type){
@@ -295,7 +346,7 @@ shinyServer(function(input, output) {
 	current_column <- which(colnames(data) == name)
 
 	if(input$precomp){
-		result <- marginal_comp #list(mean_mat,median_mat)	
+		result <- isolate(marginal_precomp()) #list(mean_mat,median_mat)	
 		current_mean <- result[[1]][current_column]
 		current_median <- result[[2]][current_column]
 		
@@ -335,9 +386,13 @@ shinyServer(function(input, output) {
   
   Outliers <- function(data,cutoff_in){
   
-	num_cols <- dim(data)[1]
+	if(input$precomp){
+		mahalanobis_dist <- isolate(outlier_precomp())
+	} else{
+		num_cols <- dim(data)[1]
 
-	mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
+		mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
+	}
 	
 	cutoff <- qchisq(1 - cutoff_in / 100, dim(data)[2], ncp = 0, lower.tail = TRUE, log.p = FALSE)
 	
@@ -372,47 +427,47 @@ shinyServer(function(input, output) {
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		}
 	
-	if (input$corr_type == "raw_corr"){
-	} else if (input$corr_type == "zscores_corr"){		
-		clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
-	} else if (input$corr_type == "quantiles_corr"){
-		clean_data <- apply(clean_data,2,rank)
-		clean_data <- clean_data / max(clean_data)
-	} else{
-		clean_data <- apply(clean_data,2,rank)
-	}
-  
-	data_t <- clean_data[,order(colnames(clean_data))]
-	
-	if (input$correlation_dropdown == "p_corr") {
-		result <- cor(data_t)
+		if (input$corr_type == "raw_corr"){
+		} else if (input$corr_type == "zscores_corr"){		
+			clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
+		} else if (input$corr_type == "quantiles_corr"){
+			clean_data <- apply(clean_data,2,rank)
+			clean_data <- clean_data / max(clean_data)
+		} else{
+			clean_data <- apply(clean_data,2,rank)
+		}
+	  
+		data_t <- clean_data[,order(colnames(clean_data))]
+		
+		if (input$correlation_dropdown == "p_corr") {
+			result <- cor(data_t)
 
-		temp <- result
-		temp[lower.tri(temp)] <- NA
-		temp <- melt(temp)
-		temp <- na.omit(temp)
-	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
-		base_size <- 14
-	
-		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Correlation Heatmap")
-	
-		p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
-	} else{	
-		result <-as.matrix(dist(t(data_t)))
+			temp <- result
+			temp[lower.tri(temp)] <- NA
+			temp <- melt(temp)
+			temp <- na.omit(temp)
+		
+			p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], midpoint = 0, limit = c(-1,1), name = "Pearson\ncorrelation\n")
+			base_size <- 14
+		
+			p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Correlation Heatmap")
+		
+			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
+		} else{	
+			result <-as.matrix(dist(t(data_t)))
 
-		temp <- result
-		temp[lower.tri(temp)] <- NA
-		temp <- melt(temp)
-		temp <- na.omit(temp)
-	
-		p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], name = "Distance\nmatrix\n")
-		base_size <- 14
-	
-		p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Euclidean Distance Matrix Heatmap")
-	
-		p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
-	}
+			temp <- result
+			temp[lower.tri(temp)] <- NA
+			temp <- melt(temp)
+			temp <- na.omit(temp)
+		
+			p <- ggplot(temp, aes(X2, X1, fill = value)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_gradient2(low = color_fun()(3)[1], high = color_fun()(3)[2], mid = color_fun()(3)[3], name = "Distance\nmatrix\n")
+			base_size <- 14
+		
+			p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Euclidean Distance Matrix Heatmap")
+		
+			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
+		}
   }
   
   Mean_Vectors <- function(){
@@ -514,7 +569,7 @@ shinyServer(function(input, output) {
   })
   
   output$data_heatmap <- renderPlot({
-	p <- Data_Heatmap(input$num_bin_data_heatmap)
+	p <- Data_Heatmap(input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
