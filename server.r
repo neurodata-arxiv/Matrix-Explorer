@@ -220,7 +220,13 @@ shinyServer(function(input, output) {
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		num_cols <- dim(data)[1]
 
-		mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
+		if(dim(data)[2] > 100){
+			cov_out <- covOGK(data)
+		} else{
+			cov_out <- covMcd(data)
+		}
+		
+		mahalanobis_dist <- mahalanobis(data,cov_out$center,cov_out$cov,tol=1e-20)
 		mahalanobis_dist
 	})
 	
@@ -273,7 +279,7 @@ shinyServer(function(input, output) {
 			#pca_precomp()
 			#tsne_precomp()
 			marginal_precomp()
-			outlier_precomp()
+			#outlier_precomp()
 		}
 	})
 	
@@ -450,8 +456,14 @@ shinyServer(function(input, output) {
 		mahalanobis_dist <- isolate(outlier_precomp())
 	} else{
 		num_cols <- dim(data)[1]
-
-		mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
+		
+		if(dim(data)[2] > 100){
+			cov_out <- covOGK(data)
+		} else{
+			cov_out <- covMcd(data)
+		}
+		
+		mahalanobis_dist <- mahalanobis(data,cov_out$center,cov_out$cov,tol=1e-20)
 	}
 	
 	cutoff <- qchisq(1 - cutoff_in / 100, dim(data)[2], ncp = 0, lower.tail = TRUE, log.p = FALSE)
