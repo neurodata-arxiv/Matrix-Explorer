@@ -137,17 +137,27 @@ shinyServer(function(input, output) {
 		for(i in c('raw','zscores','q','r')){
 			input_res <- eval(parse(text = paste('result_',i,sep = "")))
 		
-			dd.col <- as.dendrogram(hclust(dist(as.matrix(input_res))))
-			dd.row <- as.dendrogram(hclust(dist(t(as.matrix(input_res)))))
+			if(nrow(input_res) < 1000 & ncol(input_res) < 1000){
+				dd.col <- as.dendrogram(hclust(dist(as.matrix(input_res))))
+				dd.row <- as.dendrogram(hclust(dist(t(as.matrix(input_res)))))
+				col.ord <- order.dendrogram(dd.col)
+				row.ord <- order.dendrogram(dd.row)
+				ddata_x <- dendro_data(dd.row)
+				ddata_y <- dendro_data(dd.col)
+				temp <- melt(as.matrix(input_res[col.ord, row.ord]))
+				assign(paste('temp_',i,sep=""),temp)
+				assign(paste('temp_',i,'$X1',sep=""),factor(eval(parse(text = paste('temp_',i,'$X1',sep=""))), levels = row.names(input_res)[col.ord]))
+			} else{
+				ddata_x <- NA
+				ddata_y <- NA
+				temp <- melt(as.matrix(input_res))
+				assign(paste('temp_',i,sep=""),temp)
+				assign(paste('temp_',i,'$X1',sep=""),factor(eval(parse(text = paste('temp_',i,'$X1',sep=""))), levels = row.names(input_res)))
+			}
 
-			col.ord <- order.dendrogram(dd.col)
-			row.ord <- order.dendrogram(dd.row)
-		
-			assign(paste('temp_',i,sep=""),melt(as.matrix(input_res[col.ord, row.ord])))
-			assign(paste('temp_',i,'$X1',sep=""),factor(eval(parse(text = paste('temp_',i,'$X1',sep=""))), levels = row.names(input_res)[col.ord]))
 			assign(paste('lev_',i,sep=""),lapply(2:16, function(j) cut(eval(parse(text = paste('temp_',i,'$value',sep=""))),j)))
-			assign(paste('ddata_x_',i,sep=""),dendro_data(dd.row))
-			assign(paste('ddata_y_',i,sep=""),dendro_data(dd.col))
+			assign(paste('ddata_x_',i,sep=""),ddata_x)
+			assign(paste('ddata_y_',i,sep=""),ddata_y)
 		}
 	
 		print('Fired')
@@ -212,6 +222,49 @@ shinyServer(function(input, output) {
 
 		mahalanobis_dist <- mahalanobis(data,colMeans(data),cov(data),tol=1e-20)
 		mahalanobis_dist
+	})
+	
+	correlation_precomp <- reactive({
+		data_raw <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		
+		data_zscores <- scale(data_raw, center = TRUE, scale = TRUE)
+		data_q <- apply(clean_data,2,rank)
+		data_q <- data_q / max(data_q)
+		data_r <- apply(clean_data,2,rank)
+		
+		for(i in c('p','d')){
+			
+		}
+		
+		if(input$rmout_corr == TRUE){
+			if (length(show_outliers$Rows) == 0){
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+			} else{
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+				clean_data <- clean_data[-show_outliers$Rows]
+			}
+		} else{
+				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
+		}
+	  
+		data_t <- clean_data[,order(colnames(clean_data))]
+		
+		if (input$correlation_dropdown == "p_corr") {
+			result <- cor(data_t)
+
+			temp <- result
+			temp[lower.tri(temp)] <- NA
+			temp <- melt(temp)
+			temp <- na.omit(temp)
+		
+		} else{	
+			result <-as.matrix(dist(t(data_t)))
+
+			temp <- result
+			temp[lower.tri(temp)] <- NA
+			temp <- melt(temp)
+			temp <- na.omit(temp)
+		}
 	})
 	
 	run_data <- reactive({
@@ -316,25 +369,32 @@ shinyServer(function(input, output) {
 	p1 <- ggplot(output[[1]], aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
 	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
-		
-	p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
-		
-	p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 	
 	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
 	
 	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
-
+	
 	gA <- ggplotGrob(p1)
-	gB <- ggplotGrob(p3)
-	gC <- ggplotGrob(p2)	
 	gD <- ggplotGrob(cb)
 		
 	g <- gtable_add_cols(gA, unit(3,"in"))
-	g <- gtable_add_grob(g, gB,t = 2, l = ncol(g), b = 3, r = ncol(g))
-	g <- gtable_add_rows(g, unit(3,"in"), 0)
-	g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
-	g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
+	
+	if(is.na(unlist(output[[2]])[1]) == FALSE){
+		p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
+		
+		p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
+	
+		gB <- ggplotGrob(p3)
+		gC <- ggplotGrob(p2)	
+		
+		g <- gtable_add_cols(gA, unit(3,"in"))
+		g <- gtable_add_grob(g, gB,t = 2, l = ncol(g), b = 3, r = ncol(g))
+		g <- gtable_add_rows(g, unit(3,"in"), 0)
+		g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
+		g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
+	} else{
+		g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
+	}
 	
 	grid.newpage()
 	grid.draw(g)	
