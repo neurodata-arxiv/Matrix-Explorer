@@ -733,7 +733,7 @@ shinyServer(function(input, output) {
 	filter = 'top', 
 	#server = FALSE,
 	selection = 'none',
-	extensions = c('ColVis','ColReorder'),
+	extensions = c('ColReorder'),
 	options = list(dom = 'RDCT<"clear">lfrtip',scrollCollapse = TRUE, deferRender = TRUE, scrollX = TRUE)
   )
   
