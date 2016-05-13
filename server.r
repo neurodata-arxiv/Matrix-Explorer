@@ -54,6 +54,16 @@ shinyServer(function(input, output) {
 		run_data()
 	})
 	
+	heatmapheight <- reactive({
+		if(input$heatmapsize){
+			temp <- "500px"
+		} else{
+			temp <- "3000px"
+		}
+		print(temp)
+		temp
+	})
+	
 	ranges <- reactiveValues(y = NULL)
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
@@ -221,7 +231,7 @@ shinyServer(function(input, output) {
 		num_cols <- dim(data)[1]
 
 		if(dim(data)[2] > 100){
-			cov_out <- covOGK(data)
+			cov_out <- covOGK(data,sigmamu = scaleTau2)
 		} else{
 			cov_out <- covMcd(data)
 		}
@@ -285,9 +295,9 @@ shinyServer(function(input, output) {
 	
 	clust <- reactive({
 		if (input$embed_type == "PCA") {
-			df <- pca_comp()[[1]]
+			df <- pca_precomp()[[1]]
 		} else {
-			df <- tsne_comp()[[1]]
+			df <- tsne_precomp()[[1]]
 		}
 		clusters_result <- kmeans(df, input$num_clust)
 		clusters <- cbind(df,z = clusters_result$cluster)
@@ -302,9 +312,9 @@ shinyServer(function(input, output) {
 	
 	Scree_Plot <- reactive({
 		if (input$embed_type == "PCA") {
-			result <- pca_comp()[[2]]
+			result <- pca_precomp()[[2]]
 		} else {
-			result <- tsne_comp()[[2]]
+			result <- tsne_precomp()[[2]]
 		}
 
 		retained_variance <- cumsum(unlist(result)^2) /  max(cumsum(unlist(result)^2))
@@ -342,6 +352,7 @@ shinyServer(function(input, output) {
 	
 	if(input$precomp){
 		pre_output <- isolate(heatmap_precomp()) #list(temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r,lev_raw,lev_zscores,lev_q,lev_r) 
+		print('here')
 		output <- list(NA,NA,NA)
 		if (type == "raw_heatmap"){	
 			output[[1]] <- pre_output[[1]]
@@ -372,9 +383,19 @@ shinyServer(function(input, output) {
 		output <- heatmap_comp() #output <- list(temp,ddata_x,ddata_y)
 	}
   
+    output[[1]]$X2 <- substr(output[[1]]$X2,1,14)
+  
 	p1 <- ggplot(output[[1]], aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
-	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
+	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=45, vjust = 0.4), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
+	
+	if (length(row_sel()) > 25){
+		#p1 <- p1 + theme(axis.text.y=element_blank())
+	}
+	
+	if (length(col_sel()) > 25){
+		p1 <- p1 + theme(axis.text.x=element_blank())
+	}
 	
 	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
 	
@@ -385,7 +406,7 @@ shinyServer(function(input, output) {
 		
 	g <- gtable_add_cols(gA, unit(3,"in"))
 	
-	if(is.na(unlist(output[[2]])[1]) == FALSE){
+	if(is.na(unlist(output[[2]])[1]) == FALSE && input$dendro == TRUE){
 		p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 		
 		p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
@@ -399,7 +420,8 @@ shinyServer(function(input, output) {
 		g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
 		g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
 	} else{
-		g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
+		#gD <- gtable_add_padding(gD, unit(c(2,0,0,0), "in"))
+		g <- gtable_add_grob(g, gD,t = 2, l = ncol(g), b = 3, r = ncol(g))
 	}
 	
 	grid.newpage()
@@ -458,7 +480,7 @@ shinyServer(function(input, output) {
 		num_cols <- dim(data)[1]
 		
 		if(dim(data)[2] > 100){
-			cov_out <- covOGK(data)
+			cov_out <- covOGK(data,sigmamu = scaleTau2)
 		} else{
 			cov_out <- covMcd(data)
 		}
@@ -640,8 +662,12 @@ shinyServer(function(input, output) {
 	# print(c(plot_width,plot_height,current.vpTree(all=TRUE)))
   })
   
-  output$data_heatmap <- renderPlot({
-	p <- Data_Heatmap(input$heatmap_type,input$num_bin_data_heatmap)
+  output$data_heatmap <- renderUI({
+	plotOutput("data_heatmap_plot", width = "100%", height = heatmapheight(),hover = "heatmap_plot_loc")
+  })
+  
+  output$data_heatmap_plot <- renderPlot({
+    p <- Data_Heatmap(input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
