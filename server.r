@@ -56,11 +56,10 @@ shinyServer(function(input, output) {
 	
 	heatmapheight <- reactive({
 		if(input$heatmapsize){
-			temp <- "500px"
+			temp <- "650px"
 		} else{
 			temp <- "3000px"
 		}
-		print(temp)
 		temp
 	})
 	
@@ -193,21 +192,29 @@ shinyServer(function(input, output) {
 			result <- apply(result,2,rank)
 		}
 			
-		dd.col <- as.dendrogram(hclust(dist(as.matrix(result))))
-		dd.row <- as.dendrogram(hclust(dist(t(as.matrix(result)))))
+		if(input$dendro){
+			dd.col <- as.dendrogram(hclust(dist(as.matrix(result))))
+			dd.row <- as.dendrogram(hclust(dist(t(as.matrix(result)))))
 
-		col.ord <- order.dendrogram(dd.col)
-		row.ord <- order.dendrogram(dd.row)
-	
-		temp <- melt(as.matrix(result[col.ord, row.ord]))
+			col.ord <- order.dendrogram(dd.col)
+			row.ord <- order.dendrogram(dd.row)
 		
+			temp <- melt(as.matrix(result[col.ord, row.ord]))
+			temp$X1 <- factor(temp$X1, levels = row.names(result)[col.ord])
+			temp$lev <- cut(temp$value,input$num_bin_data_heatmap)
+			ddata_x <- dendro_data(dd.row)
+			ddata_y <- dendro_data(dd.col)
+		} else{
+			temp <- melt(as.matrix(result))
+			temp$X1 <- factor(temp$X1, levels = row.names(result))
+			temp$lev <- cut(temp$value,input$num_bin_data_heatmap)
+			ddata_x <- FALSE
+			ddata_y <- FALSE
+		}
 		
-		temp$X1 <- factor(temp$X1, levels = row.names(result)[col.ord])
-		temp$lev <- cut(temp$value,input$num_bin_data_heatmap)
 		#View(temp)
 	
-		ddata_x <- dendro_data(dd.row)
-		ddata_y <- dendro_data(dd.col)
+		
 			
 		output <- list(temp,ddata_x,ddata_y)
 	})
@@ -389,11 +396,11 @@ shinyServer(function(input, output) {
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
 	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=45, vjust = 0.4), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
 	
-	if (length(row_sel()) > 25){
-		#p1 <- p1 + theme(axis.text.y=element_blank())
+	if (input$heatmapy == FALSE){
+		p1 <- p1 + theme(axis.text.y=element_blank())
 	}
 	
-	if (length(col_sel()) > 25){
+	if (input$heatmapx == FALSE){
 		p1 <- p1 + theme(axis.text.x=element_blank())
 	}
 	
@@ -414,13 +421,17 @@ shinyServer(function(input, output) {
 		gB <- ggplotGrob(p3)
 		gC <- ggplotGrob(p2)	
 		
+		gC <- gtable_add_padding(gC, unit(c(0,3.8/length(col_sel()),0,3.8/length(col_sel())), "in"))
+		
 		g <- gtable_add_cols(gA, unit(3,"in"))
 		g <- gtable_add_grob(g, gB,t = 2, l = ncol(g), b = 3, r = ncol(g))
 		g <- gtable_add_rows(g, unit(3,"in"), 0)
 		g <- gtable_add_grob(g, gC,t = 1, l = 4, b = 1, r = 4)
 		g <- gtable_add_grob(g, gD,t = 1, l = ncol(g), b = 1, r = ncol(g))
 	} else{
-		#gD <- gtable_add_padding(gD, unit(c(2,0,0,0), "in"))
+		if(input$heatmapsize == FALSE){
+			gD <- gtable_add_padding(gD, unit(c(0,1.5,35,0), "in"))
+		}
 		g <- gtable_add_grob(g, gD,t = 2, l = ncol(g), b = 3, r = ncol(g))
 	}
 	
@@ -562,6 +573,12 @@ shinyServer(function(input, output) {
 		
 			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
 		}
+		
+		if(input$corraxis == FALSE){
+			p <- p + theme(axis.text.x=element_blank(),axis.text.y=element_blank())
+		}
+		
+		p
   }
   
   Mean_Vectors <- function(){
@@ -587,20 +604,38 @@ shinyServer(function(input, output) {
 			output_se[i] <- sd(clean_data[,i],na.rm = TRUE) / sqrt(length(clean_data[,i]))
 		}
 	} else{
-		output_mean <- colMedians(as.matrix(clean_data), na.rm = FALSE)
-		output_mean <- output_mean / apply(clean_data,2,mad)
-		clean_data <- sweep(clean_data,2,apply(clean_data,2,mad),`/`) 
+		col_median <- colMedians(as.matrix(clean_data), na.rm = FALSE)
+		clean_data <- sweep(clean_data - col_median,2,apply(clean_data,2,mad),`/`) 
 		for (i in c(1:num_vars)){
+			output_mean[i] <- mean(clean_data[,i],na.rm = TRUE)	
 			output_se[i] <- sd(clean_data[,i],na.rm = TRUE) / sqrt(length(clean_data[,i]))
 		}
 	}	 
 	 
 	df <- data.frame(names = colnames(clean_data), means = output_mean, se = output_se)
 	 
-	if (input$mean_type == "Scatter") {
-		p <- ggplot(melt(clean_data,0), aes(x = variable, y = value)) + geom_jitter() + xlab("") + ylab("Data Values") + ggtitle('Data Scatter Plot') 
-	} else if (input$mean_type == "Mean Vector"){
-		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + ylab("Mean") + xlab("") + ggtitle('Raw Column Means') 
+	 
+	if (input$mean_type == "Scatter") {	
+		if(input$colorfeature){
+			clean_data <- as.data.frame(cbind(clean_data,Class = factor(my_data()[[2]][row_sel(),col_class()])))#Check this
+			aes_set <- aes_q(x = as.name('variable'), y = as.name('value'), color = as.name('Class'))#This looks wrong
+			clean_data <- melt(clean_data,id.vars = "Class")			
+		} else{
+			aes_set <- aes_q(x = as.name('variable'), y = as.name('value'))
+			clean_data <- melt(clean_data,0)
+		}
+		p <- ggplot(clean_data, aes_set) + geom_jitter() + xlab("") + ylab("Data Values") + ggtitle('Data Scatter Plot') 
+	} else if (input$mean_type == "Line plot"){
+		clean_data <- as.data.frame(cbind(clean_data,Group = c(1:length(row_sel()))))#Check this
+		if(input$colorfeature){
+			clean_data <- as.data.frame(cbind(clean_data,Class = factor(my_data()[[2]][row_sel(),col_class()])))#Check this
+			aes_set <- aes_q(x = as.name('variable'), y = as.name('value'), group = as.name('Group'), color = as.name('Class'))#This looks wrong
+			clean_data <- melt(clean_data,id.vars = c("Class","Group"))			
+		} else{
+			aes_set <- aes_q(x = as.name('variable'), y = as.name('value'), group = as.name('Group'))
+			clean_data <- melt(clean_data,id.vars = "Group")
+		}
+		p <- ggplot(clean_data, aes_set) + geom_line(alpha = 0.5,size = 0.5) + ylab("Values") + xlab("") + ggtitle('Line Plot') 
 	} else if(input$mean_type == "Mean Vector with standard error bars"){
 		p <- ggplot(df, aes(x = names, y = means)) + geom_point() + geom_errorbar(aes(ymax = means + se, ymin=means - se), width=0.3) + ylab("Mean") + xlab("") + ggtitle('Raw Column Means')
 	} else if(input$mean_type == "Box Plot"){

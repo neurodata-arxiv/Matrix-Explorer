@@ -61,12 +61,11 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
 				 "Ranks" = "rank_heatmap")),
 	sliderInput(inputId = "num_bin_data_heatmap", label = "Number of Color Bins", min=2, max=16, value=4, step = 1),
 	hr(),
+	checkboxInput('heatmapy','Show sample labels?',TRUE),
+	checkboxInput('heatmapx','Show feature labels?',TRUE),
 	checkboxInput('dendro', 'Show dendrogram?', TRUE),
-	hr(),
-	checkboxInput('heatmaporder', 'Disable column/row reordering?', FALSE),
-	hr(),
+	#checkboxInput('heatmaporder', 'Disable column/row reordering?', FALSE),
 	checkboxInput('heatmapsize', 'Resize heatmap to fit screen?', FALSE),
-	hr(),
 	DT::dataTableOutput(outputId="heatmap_location_info")
     ),
 	mainPanel(
@@ -118,7 +117,9 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
 	selectInput(inputId = "correlation_dropdown",
 				label = "Select Metric",
 				list("Pearson's Correlation" = "p_corr",  
-				 "Euclidean Distance Matrix" = "dist_met")) ,
+				 "Euclidean Distance Matrix" = "dist_met")),
+	hr(),
+	checkboxInput('corraxis','Show axis tick labels?',TRUE),
 	DT::dataTableOutput(outputId="corr_location_info")
 	#verbatimTextOutput("corr_location_info")
   ),
@@ -131,13 +132,15 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
 	checkboxInput('rmout_mean', 'Remove Outliers', TRUE),
 	selectInput(inputId = "mean_type",
 				label = "Select Type of Plot",
-				list("Scatter", "Mean Vector","Mean Vector with standard error bars", "Box Plot","Violin Plot")
+				list("Scatter", "Line plot","Mean Vector with standard error bars", "Box Plot","Violin Plot")
 				),
 	selectInput(inputId = "mean_pp_type",
 			label = "Select",
 			list("Raw Data" = "raw_mean", 
-			 "R-scores" = "rscores_mean"))				
-	 ),
+			 "R-scores" = "rscores_mean")),
+	hr(),
+	checkboxInput('colorfeature','Color based on class?',FALSE)			 
+	),
   mainPanel(
     plotOutput("Mean_o", height = "800px", dblclick = "plot1_dblclick",
         brush = brushOpts(
