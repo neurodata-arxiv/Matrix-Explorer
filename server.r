@@ -734,7 +734,7 @@ shinyServer(function(input, output) {
 	#server = FALSE,
 	selection = 'none',
 	extensions = c('TableTools','ColVis','ColReorder'),
-	options = list(dom = 'RDCT<"clear">lfrtip',tableTools = list(sSwfPath = copySWF('www')),scrollCollapse = TRUE, deferRender = TRUE, scrollX = TRUE)
+	options = list(dom = 'RDCT<"clear">lfrtip'),scrollCollapse = TRUE, deferRender = TRUE, scrollX = TRUE)
   )
   
   
