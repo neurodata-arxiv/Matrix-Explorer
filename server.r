@@ -107,8 +107,8 @@ shinyServer(function(input, output) {
 		} else if (input$clust_pp_type == "zscores_pp"){		
 			clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
 		} else if (input$clust_pp_type == "quantiles_pp"){
-			clean_data <- apply(clean_data,2,rank)
-			clean_data <- clean_data / max(clean_data)
+			clean_data <- clean_data - apply(clean_data,2,min)
+			clean_data <- clean_data / apply(clean_data,2,max)
 		} else{
 			clean_data <- apply(clean_data,2,rank)
 		}
@@ -138,8 +138,8 @@ shinyServer(function(input, output) {
 		
 		result_zscores <- scale(result_raw, center = TRUE, scale = TRUE)
 		
-		result_q <- apply(result_raw,2,rank)
-		result_q <- result_q / max(result_q)
+		result_q <- result -  apply(result,2,min)
+		result_q <- result_q / apply(result_q,2,max)
 		
 		result_r <- apply(result_raw,2,rank)
 		
@@ -186,8 +186,8 @@ shinyServer(function(input, output) {
 		} else if (type == "zscores_heatmap"){		
 			result <- scale(result, center = TRUE, scale = TRUE)
 		} else if (type == "quantiles_heatmap"){
-			result <- apply(result,2,rank)
-			result <- result / max(result)
+			result <- result - apply(data,2,min)
+			result <- result / apply(data,2,max)
 		} else{
 			result <- apply(result,2,rank)
 		}
@@ -251,8 +251,8 @@ shinyServer(function(input, output) {
 		data_raw <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		
 		data_zscores <- scale(data_raw, center = TRUE, scale = TRUE)
-		data_q <- apply(clean_data,2,rank)
-		data_q <- data_q / max(data_q)
+		data_q <- data_raw - apply(data_raw,2,min)
+		data_q <- data_q / apply(data_q,2,max)
 		data_r <- apply(clean_data,2,rank)
 		
 		for(i in c('p','d')){
@@ -536,8 +536,8 @@ shinyServer(function(input, output) {
 		} else if (input$corr_type == "zscores_corr"){		
 			clean_data <- scale(clean_data, center = TRUE, scale = TRUE)
 		} else if (input$corr_type == "quantiles_corr"){
-			clean_data <- apply(clean_data,2,rank)
-			clean_data <- clean_data / max(clean_data)
+			clean_data <- clean_data - apply(clean_data,2,min)
+			clean_data <- clean_data / apply(clean_data,2,max)
 		} else{
 			clean_data <- apply(clean_data,2,rank)
 		}
