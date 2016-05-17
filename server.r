@@ -18,7 +18,6 @@ library(data.table)
 options(shiny.maxRequestSize = 2000*1024^2)
 
 shinyServer(function(input, output) {
-
 	#Set up a reactive variable to accept input from interact.js when the user clicks on a row, column, or chooses a column class. Note that when no columns or rows are selected, Vector Explorer automatically analyzes all rows and columns.
 	col_sel <- reactive({
 		if (length(input$col_sel) > 0){
@@ -72,7 +71,7 @@ shinyServer(function(input, output) {
 	inFile$datapath <- NULL
 	
 	observeEvent(input$demo,{
-		inFile$datapath <- ".\\sample_sets\\iris.csv"
+		inFile$datapath <- "www\\iris.csv"
 	})
 	observeEvent(input$data,{
 		temp <- input$data
@@ -336,7 +335,6 @@ shinyServer(function(input, output) {
 		}
 		clusters_result <- kmeans(df, input$num_clust)
 		clusters <- cbind(df,z = clusters_result$cluster)
-		#memb <- cutree(hclust(dist(my_data()[[1]]), method = "complete"), k = input$num_clust)
 	})
 	
 	#Handles the color options for the Shiny plots. Note that this does not need to be reactive, as you will switch tabs before colour scheme matters. But, just in case that becomes useful in the future, we will keep it.
@@ -437,7 +435,7 @@ shinyServer(function(input, output) {
 	
 	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
 	
-	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
+	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text(), text = element_text(size=25), legend.text = element_text(size=25))
 	
 	#Use grobs to align dendrograms/heatmap/colorbar.
 	gA <- ggplotGrob(p1)
@@ -489,21 +487,28 @@ shinyServer(function(input, output) {
 	
 	if(input$marginal_condition_classes){
 		data <- cbind(data,Class = factor(my_data()[[2]][row_sel(),col_class()]))#Check this
-		aes_set <- aes_q(x = as.name(name), color = as.name('Class'))#This looks wrong		
+		aes_set <- aes_q(x = as.name(name), color = as.name('Class'), fill = as.name('Class'))#This looks wrong	
+		if (type == "hist"){
+			p <- ggplot(data, aes_set) + geom_histogram(alpha = 0.2) + ylab('Counts')
+		} else if (type == "kd"){
+			p <- ggplot(data, aes_set) + geom_density(alpha = 0.2) + ylab('Density')
+		}
+		else{
+			p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), alpha = 0.2) + geom_density(alpha = 0.2) + ylab('Density')
+		}		
 	} else{
 		aes_set <- aes_q(x = as.name(name))
+		if (type == "hist"){
+			p <- ggplot(data, aes_set) + geom_histogram(fill = "deepskyblue2", alpha = 0.2) + ylab('Counts')
+		} else if (type == "kd"){
+			p <- ggplot(data, aes_set) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
+		}
+		else{
+			p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
+		}
 	}
 	
-	if (type == "hist"){
-		p <- ggplot(data, aes_set) + geom_histogram(fill = "deepskyblue2", alpha = 0.2) + ylab('Counts')
-	} else if (type == "kd"){
-		p <- ggplot(data, aes_set) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
-	}
-	else{
-		 p <- ggplot(data, aes_set) + geom_histogram(aes(y = ..density..), fill = "deepskyblue2", alpha = 0.2) + geom_density(fill = "blue" , alpha = 0.2) + ylab('Density')
-	}
-	
-	p <- p + theme_offset + ggtitle("Marginal Distribution") 
+	p <- p + theme_offset + ggtitle("Marginal Distribution") + theme(text = element_text(size=25), legend.text = element_text(size=25), legend.title = element_text(size=25), legend.key.size = unit(1.75, "lines"))
 	
 	if(input$marginal_mean){
 		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(size = 8, x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.65)		
@@ -555,7 +560,7 @@ shinyServer(function(input, output) {
 	
 	p <- p + geom_point(size = 3) + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
 	
-	p <- p + theme(axis.title.y=element_text(vjust=1),plot.title = element_text(vjust=2), text = element_text(size=20))
+	p <- p + theme(axis.title.y=element_text(vjust=1),plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), legend.key.size = unit(1.75, "lines"))
 	
 	return(list(df_outliers,p))
   }
@@ -598,7 +603,7 @@ shinyServer(function(input, output) {
 		
 			p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Correlation Heatmap")
 		
-			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
+			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=25), legend.text=element_text(size=25), legend.title = element_text(size = 25)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
 		} else{	
 			result <-as.matrix(dist(t(data_t)))
 
@@ -612,7 +617,7 @@ shinyServer(function(input, output) {
 		
 			p <- p + theme_grey(base_size = base_size) + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + ggtitle("Euclidean Distance Matrix Heatmap")
 		
-			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=20), legend.text=element_text(size=20), legend.title = element_text(size = 20)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
+			p <- p + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=90, vjust = 0.6), axis.text.y = element_text(), text = element_text(size=25), legend.text=element_text(size=25), legend.title = element_text(size = 25)) + guides(fill = guide_colorbar(barwidth = 2, barheight = 10, title.position = "top", title.vjust = 10)) 
 		}
 		
 		if(input$corraxis == FALSE){
@@ -666,7 +671,7 @@ shinyServer(function(input, output) {
 			aes_set <- aes_q(x = as.name('variable'), y = as.name('value'))
 			clean_data <- melt(clean_data,0)
 		}
-		p <- ggplot(clean_data, aes_set) + geom_jitter() + xlab("") + ylab("Data Values") + ggtitle('Data Scatter Plot') 
+		p <- ggplot(clean_data, aes_set) + geom_jitter() + xlab("") + ylab("Data Values") + ggtitle('Scatter Plot') 
 	} else if (input$mean_type == "Line plot"){
 		clean_data <- as.data.frame(cbind(clean_data,Group = c(1:length(row_sel()))))#Check this
 		if(input$colorfeature){
@@ -686,7 +691,7 @@ shinyServer(function(input, output) {
 		p <- ggplot(melt(clean_data,0),aes(x = variable, y = value)) + geom_violin() + ylab("Data Values") + xlab("") + ggtitle('Violin Plots') 
 	}
 	
-	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + coord_cartesian(ylim = ranges$y)
+	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), axis.text.x=element_text(angle=45, vjust = 0.6),axis.text.y=element_text(vjust = 1),legend.key.size = unit(1.75, "lines")) + coord_cartesian(ylim = ranges$y)
   }
   
   #Generate the 2D embedding and clustering plots as well as the scree plot.
@@ -696,7 +701,7 @@ shinyServer(function(input, output) {
 
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
-	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2), axis.title.y=element_text(vjust=1)) + scale_colour_discrete(name = "Clusters")	
+	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), axis.text.x = element_text(vjust = 2), axis.title.y=element_text(vjust=1),legend.key.size = unit(1.75, "lines")) + scale_colour_discrete(name = "Clusters")	
 	
    }
   #Pushes the marginal plots to the UI
