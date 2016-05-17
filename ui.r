@@ -5,7 +5,7 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
   tabPanel("Upload", value = "D",
     sidebarPanel(
 		fileInput('data', 'Choose CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain','.csv')),
-		tags$hr(),
+		actionButton('demo',"Demo (Iris Dataset)", width = "35%"),
 		checkboxInput('header', 'Header', TRUE),
 		radioButtons('sep', 'Separator',
                    c(Comma=',',
@@ -102,6 +102,7 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
   #Panel that displays outlier plots
   tabPanel("Outliers", value = "OA",
 	sidebarPanel(
+		checkboxInput('coloroutlier','Color based on class?',FALSE),
 		sliderInput(inputId = "pval", label = "Rejection P-Value", min=0, max=0.1, value=0.05, step = 0.01),
 		DT::dataTableOutput(outputId="outlier_info")
 	),

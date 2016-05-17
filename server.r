@@ -52,11 +52,6 @@ shinyServer(function(input, output) {
 		row_sel()
 	})
 	
-	observe({
-		my_data()
-		run_data()
-	})
-	
 	#Reactive variable to control heatmap height, as set by user.
 	heatmapheight <- reactive({
 		if(input$heatmapsize){
@@ -72,15 +67,26 @@ shinyServer(function(input, output) {
 	#Reactive variable to hold the outliers that we detected
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
-	#This variavle reads in a store the data after some pre-processing.
-	my_data <- reactive({
-		#Confirm that we actually have data
-		validate(need(input$data, message = FALSE)) 	
-		inFile <- input$data 
-		if (is.null(inFile)){
+	
+	inFile <- reactiveValues()
+	inFile$datapath <- NULL
+	
+	observeEvent(input$demo,{
+		inFile$datapath <- ".\\sample_sets\\iris.csv"
+	})
+	observeEvent(input$data,{
+		temp <- input$data
+		inFile$datapath <- temp$datapath	
+	})
+	
+	#This variable reads in a store the data after some pre-processing.
+	my_data <- reactive({	
+		validate(need(inFile$datapath, message = FALSE))
+		if (is.null(inFile$datapath)){
 			return(NULL)
 		}
 		
+		print(inFile$datapath)
 		#Read in data using fread as a data.table and find column classes
 		df <- fread(inFile$datapath, header = input$header, sep = input$sep, na.strings=c("NA","N/A","null"),data.table = FALSE)
 		dataTypes <- sapply(df, class)
@@ -532,7 +538,15 @@ shinyServer(function(input, output) {
 	
 	outlier <- mahalanobis_dist > cutoff
 	
-	df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier)
+	if(input$coloroutlier == TRUE){
+		Class <- as.data.frame(factor(my_data()[[2]][row_sel(),col_class()]))
+		df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier, Class = Class)
+		colnames(df_outliers) <<- c('x','y','z','Class')
+		p <- ggplot(df_outliers,aes(x = x,y = y, color = z, shape = Class))
+	} else{
+		df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier)
+		p <- ggplot(df_outliers,aes(x = x,y = y, colour = z))
+	}
 	
 	
 	show_outliers$Rows <- df_outliers[,1][outlier]
@@ -540,9 +554,7 @@ shinyServer(function(input, output) {
 	show_outliers$Distances <- mahalanobis_dist[df_outliers[,3]]
 	
 	
-	p <- ggplot(df_outliers,aes(x = x,y = y))
-	
-	p <- p + geom_point(aes(colour = z)) + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
+	p <- p + geom_point() + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
 	
 	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20))
 	
