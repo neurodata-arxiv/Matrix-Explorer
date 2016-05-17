@@ -71,7 +71,7 @@ shinyServer(function(input, output) {
 	inFile$datapath <- NULL
 	
 	observeEvent(input$demo,{
-		inFile$datapath <- "www\\iris.csv"
+		inFile$datapath <- paste(getwd(),"\\www\\iris.csv",sep="")
 	})
 	observeEvent(input$data,{
 		temp <- input$data
