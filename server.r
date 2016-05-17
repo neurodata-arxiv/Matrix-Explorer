@@ -1,3 +1,5 @@
+#Load required libraries
+
 library(shiny)
 library(ggplot2)
 library(robustbase)
@@ -12,6 +14,7 @@ library(RColorBrewer)
 library(DT)
 library(data.table)
 
+#Set maximum accepted input file size to 2000 MB
 options(shiny.maxRequestSize = 2000*1024^2)
 
 shinyServer(function(input, output) {
@@ -54,6 +57,7 @@ shinyServer(function(input, output) {
 		run_data()
 	})
 	
+	#Reactive variable to control heatmap height, as set by user.
 	heatmapheight <- reactive({
 		if(input$heatmapsize){
 			temp <- "650px"
@@ -64,22 +68,30 @@ shinyServer(function(input, output) {
 	})
 	
 	ranges <- reactiveValues(y = NULL)
+	
+	#Reactive variable to hold the outliers that we detected
 	show_outliers <- reactiveValues(Names = NULL, Distances = NULL, Rows = NULL)
 	
+	#This variavle reads in a store the data after some pre-processing.
 	my_data <- reactive({
+		#Confirm that we actually have data
 		validate(need(input$data, message = FALSE)) 	
 		inFile <- input$data 
 		if (is.null(inFile)){
 			return(NULL)
 		}
 		
+		#Read in data using fread as a data.table and find column classes
 		df <- fread(inFile$datapath, header = input$header, sep = input$sep, na.strings=c("NA","N/A","null"),data.table = FALSE)
 		dataTypes <- sapply(df, class)
 		
+		#Pre-process step
+		#Remove rows with an NA
 		if(input$proc){
 			df <- na.omit(df)
 		}
 		 
+		#Drop character columns in primary output. Note that we converted 
 		data_with_factors <- df
 		f_indi <- which(dataTypes == "character")	
 		if(length(f_indi) > 0) {
@@ -87,10 +99,12 @@ shinyServer(function(input, output) {
 			dataTypes <- dataTypes[-f_indi]
 		}
 		
+		#
 		data <- list(df,data_with_factors,f_indi)
 		
 	})
 
+	#Reactive variable that processes the data based on user selected rows, columns, and outlier removal option selection. It also handles the clustering.
 	data_pp <- reactive({
 		if(input$rmout == TRUE){
 			if (length(show_outliers$Rows) == 0){
@@ -115,6 +129,7 @@ shinyServer(function(input, output) {
 		clean_data
 	})
 	
+	#Compute PCA embedding
 	pca_precomp <- reactive({	
 		fit <- prcomp(data_pp(), center=TRUE, scale = FALSE)
 		df <- data.frame(x = fit$x[,1], y = fit$x[,2])
@@ -122,6 +137,7 @@ shinyServer(function(input, output) {
 		list(df,rv)
 	})
 	
+	#Compute tSNE embedding
 	tsne_precomp <- reactive({		
 		fit <- as.data.frame(tsne(data_pp(), perplexity=50))
 		df <- data.frame(x = fit$V1, y = fit$V2)
@@ -129,6 +145,7 @@ shinyServer(function(input, output) {
 		list(df,rv)
 	})
 	
+	#This function pre-computes all possible heatmaps using the input data so that the user does not have to wait for computation. Note that this does not actually render the computed results into the actual heatmap, so the user will still have to wait for that. For large heatmaps, this could take quite a while.
 	heatmap_precomp <- reactive({
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		
@@ -173,7 +190,8 @@ shinyServer(function(input, output) {
 		
 		output <- list(temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r,lev_raw,lev_zscores,lev_q,lev_r)
 	})
-			
+	
+	#If the user has not selected the pre-compute option, this function handles the heatmap computation. This function generates the data for the heatmap.
 	heatmap_comp <- reactive({		
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		type <- input$heatmap_type
@@ -219,6 +237,7 @@ shinyServer(function(input, output) {
 		output <- list(temp,ddata_x,ddata_y)
 	})
 	
+	#Pre-computes all the feature marginals
 	marginal_precomp <- reactive({
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		
@@ -233,6 +252,7 @@ shinyServer(function(input, output) {
 		output <- list(mean_mat,median_mat)		
 	})
 	
+	#Pre-computes all the outliers
 	outlier_precomp <- reactive({
 		data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		num_cols <- dim(data)[1]
@@ -247,6 +267,7 @@ shinyServer(function(input, output) {
 		mahalanobis_dist
 	})
 	
+	#Pre-computes the correlation matrix
 	correlation_precomp <- reactive({
 		data_raw <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		
@@ -290,6 +311,7 @@ shinyServer(function(input, output) {
 		}
 	})
 	
+	#To handle Shiny reactive variable lazy execution
 	run_data <- reactive({
 		if(input$precomp){
 			heatmap_precomp()
@@ -300,6 +322,7 @@ shinyServer(function(input, output) {
 		}
 	})
 	
+	#Hold the cluster information for kmeans clustering after PCA/tSNE embedding.
 	clust <- reactive({
 		if (input$embed_type == "PCA") {
 			df <- pca_precomp()[[1]]
@@ -311,12 +334,13 @@ shinyServer(function(input, output) {
 		#memb <- cutree(hclust(dist(my_data()[[1]]), method = "complete"), k = input$num_clust)
 	})
 	
-	#This does not need to be reactive, as you will switch tabs before colour scheme matters. 
+	#Handles the color options for the Shiny plots. Note that this does not need to be reactive, as you will switch tabs before colour scheme matters. But, just in case that becomes useful in the future, we will keep it.
 	color_fun <- reactive({
 		cgrad <- brewer.pal(5,input$colormap);
 		c_fun<- colorRampPalette(cgrad)
 	})
 	
+	#Compute the scree plot information after PCA
 	Scree_Plot <- reactive({
 		if (input$embed_type == "PCA") {
 			result <- pca_precomp()[[2]]
@@ -336,6 +360,7 @@ shinyServer(function(input, output) {
 		p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45))	
 	})
 	
+	#Blank theme setting
 	theme_none <- theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
@@ -348,6 +373,7 @@ shinyServer(function(input, output) {
 		axis.ticks.length = unit(0, "cm")
 	)
 	
+	#Offset theme for alignment
 	theme_offset <- theme(
 		title = element_text(size=20), 
 		plot.title = element_text(vjust = 2), 
@@ -355,8 +381,8 @@ shinyServer(function(input, output) {
 		axis.title.y = element_text(vjust = 2)
 	)
 	
-  Data_Heatmap <- function(type,bins){
-	
+	#This function uses the data from heatmamp_precomp/heatmap_comp to actually generate the heatmap plot.
+	Data_Heatmap <- function(type,bins){
 	if(input$precomp){
 		pre_output <- isolate(heatmap_precomp()) #list(temp_raw,temp_zscores,temp_q,temp_r,ddata_x_raw,ddata_x_zscores,ddata_x_q,ddata_x_r,ddata_y_raw,ddata_y_zscores,ddata_y_q,ddata_y_r,lev_raw,lev_zscores,lev_q,lev_r) 
 		print('here')
@@ -408,6 +434,7 @@ shinyServer(function(input, output) {
 	
 	cb <- ggplot(cb_df,aes(X1,X2,fill = X2)) + geom_tile(alpha = 0.5) + coord_equal(1/bins * 25) + scale_fill_manual(values = color_fun()(bins), guide=FALSE) + theme_none + theme(axis.text.y = element_text())
 	
+	#Use grobs to align dendrograms/heatmap/colorbar.
 	gA <- ggplotGrob(p1)
 	gD <- ggplotGrob(cb)
 		
@@ -438,7 +465,8 @@ shinyServer(function(input, output) {
 	grid.newpage()
 	grid.draw(g)	
   }
-	
+
+  #Uses data from marginal_precomp/marginal_comp to actually construct the marginals
   Marginals <- function(data,name,type){
 	validate(need(name, message=FALSE))
 	
@@ -483,6 +511,7 @@ shinyServer(function(input, output) {
 	p
   }
   
+  #Use the data from the outlier computation functions to construct the outlier plots.
   Outliers <- function(data,cutoff_in){
   
 	if(input$precomp){
@@ -520,6 +549,7 @@ shinyServer(function(input, output) {
 	return(list(df_outliers,p))
   }
   
+  #Use the information from the correlation computation function to generate the correlation/euclidean distance matrix.
 	Correlation <- function(){
 		if(input$rmout_corr == TRUE){
 			if (length(show_outliers$Rows) == 0){
@@ -581,6 +611,7 @@ shinyServer(function(input, output) {
 		p
   }
   
+  #Generate the feature summary plots.
   Mean_Vectors <- function(){
 	if(input$rmout_mean == TRUE){
 			if (length(show_outliers$Rows) == 0){
@@ -647,6 +678,7 @@ shinyServer(function(input, output) {
 	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=90, vjust = 0.6)) + coord_cartesian(ylim = ranges$y)
   }
   
+  #Generate the 2D embedding and clustering plots as well as the scree plot.
   Clustering <- function(){
 	
 	df <- clust()
@@ -656,12 +688,13 @@ shinyServer(function(input, output) {
 	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
 	
    }
-  
+  #Pushes the marginal plots to the UI
   output$MarginalPlot <- renderPlot({
     p <- Marginals(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$col_names,input$show_type)
     print(p)
   })
   
+  #Pushes the outlier plots to the UI
   output$Outliers <- renderPlot({
 	result <- Outliers(my_data()[[1]][unlist(row_sel()),unlist(col_sel())],input$pval * 100)
 	p <- result[2]
@@ -669,6 +702,7 @@ shinyServer(function(input, output) {
 	print(p)
   })
   
+  #Pushes the correlaiton plots to the UI
   output$Corr <- renderPlot({
 	p <- Correlation()
 	
@@ -697,34 +731,43 @@ shinyServer(function(input, output) {
 	# print(c(plot_width,plot_height,current.vpTree(all=TRUE)))
   })
   
+  #Pushes the heatmap plots (rendered partially below) to the UI
   output$data_heatmap <- renderUI({
 	plotOutput("data_heatmap_plot", width = "100%", height = heatmapheight(),hover = "heatmap_plot_loc")
   })
   
+  #Pushes the heatmap plots to the UI renderer above
   output$data_heatmap_plot <- renderPlot({
     p <- Data_Heatmap(input$heatmap_type,input$num_bin_data_heatmap)
 	print(p)
   })
   
+  #Pushes the feature plots to the UI
   output$Mean_o <- renderPlot({
 	p <- Mean_Vectors()
 	print(p)
   })
   
+  #Pushes the cluster plots to the UI
   output$Clust <- renderPlot({
 	p <- Clustering()
 	print(p)
   })
   
+  #Pushes the scree plot to the UI
   output$Scree <- renderPlot({
-	p <- Scree_Plot()
-	print(p)
+	if(input$embed_type == "PCA"){
+		p <- Scree_Plot()
+		print(p)
+	}
   })
   
+  #Table included by the outlier plot to dynamically display the outliers
   output$outlier_info <- DT::renderDataTable({	
     data.frame(Outlier_Names = show_outliers$Names, Distances = show_outliers$Distances)
   }, options= list(searching = FALSE))
   
+  #Front-page data table which allows for user interaction with the data
   output$table <- DT::renderDataTable(
 	my_data()[[2]],
 	class = 'row-border stripe hover order-column',
@@ -737,7 +780,7 @@ shinyServer(function(input, output) {
 	options = list(dom = 'RDCT<"clear">lfrtip',scrollCollapse = TRUE, deferRender = TRUE, scrollX = TRUE)
   )
   
-  
+  #On hover over correlaiton plot, displays information about current cell
   output$corr_location_info <- DT::renderDataTable({
 	if (is.null(input$corr_plot_loc$x)) return()
 	if (is.null(input$corr_plot_loc$y)) return()
@@ -763,6 +806,7 @@ shinyServer(function(input, output) {
 	
   }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
   
+  #On hover over heatmap, displays informaiton about current cell
   output$heatmap_location_info <- DT::renderDataTable({
 	if (is.null(input$heatmap_plot_loc$x)) return()
 	if (is.null(input$heatmap_plot_loc$y)) return()
@@ -781,6 +825,7 @@ shinyServer(function(input, output) {
 	location
   }, options= list(pageLength = 1, dom = 't',searching = FALSE), rownames = FALSE)
   
+  #Pushes the column names of the currently selected columns to the user in the marginal tab dropdown column
   observeEvent(my_data(), { 
     output$marginal_column <- renderUI({
 	selectInput(inputId = "col_names", label = "Select", colnames(my_data()[[1]][,unlist(col_sel())]))
