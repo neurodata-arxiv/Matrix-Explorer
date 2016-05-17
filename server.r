@@ -71,7 +71,9 @@ shinyServer(function(input, output) {
 	inFile$datapath <- NULL
 	
 	observeEvent(input$demo,{
-		inFile$datapath <- paste(getwd(),"\\www\\iris.csv",sep="")
+		tmpFile <- tempfile()
+		download.file( "https://raw.githubusercontent.com/neurodata/Matrix-Explorer/master/sample_sets/iris.csv", destfile = tmpFile, method = "curl")
+		inFile$datapath <- tmpFile
 	})
 	observeEvent(input$data,{
 		temp <- input$data
