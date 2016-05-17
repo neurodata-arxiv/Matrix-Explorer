@@ -86,7 +86,6 @@ shinyServer(function(input, output) {
 			return(NULL)
 		}
 		
-		print(inFile$datapath)
 		#Read in data using fread as a data.table and find column classes
 		df <- fread(inFile$datapath, header = input$header, sep = input$sep, na.strings=c("NA","N/A","null"),data.table = FALSE)
 		dataTypes <- sapply(df, class)
@@ -363,7 +362,7 @@ shinyServer(function(input, output) {
 		}
 	
 		p <- ggplot(df, aes(x = x,y = y)) + xlab('Retained Dimensions') + ylab('Explained Variance') + ggtitle('Scree Plot')
-		p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45))	
+		p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45), axis.title.y=element_text(vjust=1))	
 	})
 	
 	#Blank theme setting
@@ -554,9 +553,9 @@ shinyServer(function(input, output) {
 	show_outliers$Distances <- mahalanobis_dist[df_outliers[,3]]
 	
 	
-	p <- p + geom_point() + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
+	p <- p + geom_point(size = 3) + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
 	
-	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=20))
+	p <- p + theme(axis.title.y=element_text(vjust=1),plot.title = element_text(vjust=2), text = element_text(size=20))
 	
 	return(list(df_outliers,p))
   }
@@ -697,7 +696,7 @@ shinyServer(function(input, output) {
 
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
-	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2)) + scale_colour_discrete(name = "Clusters")	
+	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x = element_text(vjust = 2), axis.title.y=element_text(vjust=1)) + scale_colour_discrete(name = "Clusters")	
 	
    }
   #Pushes the marginal plots to the UI
