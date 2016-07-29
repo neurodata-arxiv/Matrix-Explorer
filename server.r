@@ -13,6 +13,7 @@ library(tsne)
 library(RColorBrewer)
 library(DT)
 library(data.table)
+library(softImpute)
 
 #Set maximum accepted input file size to 2000 MB
 options(shiny.maxRequestSize = 2000*1024^2)
@@ -54,7 +55,7 @@ shinyServer(function(input, output) {
 	#Reactive variable to control heatmap height, as set by user.
 	heatmapheight <- reactive({
 		if(input$heatmapsize){
-			temp <- "650px"
+			temp <- "700px"
 		} else{
 			temp <- "3000px"
 		}
@@ -93,8 +94,12 @@ shinyServer(function(input, output) {
 		
 		#Pre-process step
 		#Remove rows with an NA
-		if(input$proc){
+		if(input$proc == 'rem_row'){
 			df <- na.omit(df)
+		} else if(input$proc == 'impute'){
+			cols_to_impute = dataTypes == "integer" | dataTypes == "numeric"
+			df_imp <- softImpute(as.matrix(df[,cols_to_impute]))
+			df <- complete(df,df_imp)
 		}
 		 
 		#Drop character columns in primary output. Note that we converted 
@@ -425,7 +430,7 @@ shinyServer(function(input, output) {
   
 	p1 <- ggplot(output[[1]], aes(X2, X1, fill = lev)) + geom_tile(alpha = 0.5, colour = "white") + scale_fill_manual(values = color_fun()(bins), name = "Z-score",guide=FALSE)
 	p1 <- p1 + labs(x = "", y = "") + scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))# + ggtitle("Column Scaled Z-Score Heatmap")
-	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=45, vjust = 0.4), axis.text.y = element_text(), text = element_text(size = 20), legend.text=element_text(size=20), legend.title = element_text(size = 10))
+	p1 <- p1 + theme(axis.ticks = element_blank(), plot.title = element_text(vjust=2), axis.text.x = element_text(angle=45, vjust = 0.4), axis.text.y = element_text(), text = element_text(size = 25), legend.text=element_text(size=20), legend.title = element_text(size = 10))
 	
 	if (input$heatmapy == FALSE){
 		p1 <- p1 + theme(axis.text.y=element_blank())
@@ -433,6 +438,10 @@ shinyServer(function(input, output) {
 	
 	if (input$heatmapx == FALSE){
 		p1 <- p1 + theme(axis.text.x=element_blank())
+	}
+	
+	if (input$dendro == FALSE){
+		p1 <- p1 + ggtitle('Heatmap')
 	}
 	
 	cb_df <- data.frame(X1 = 1,X2 = output[[1]]$lev)
@@ -446,7 +455,7 @@ shinyServer(function(input, output) {
 	g <- gtable_add_cols(gA, unit(3,"in"))
 	
 	if(is.na(unlist(output[[2]])[1]) == FALSE && input$dendro == TRUE){
-		p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
+		p2 <- ggplot(segment(output[[2]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   theme_none + theme(axis.title.x=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0,0,0,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm")) + ggtitle('Heatmap') + theme(plot.title = element_text(vjust=1.2))
 		
 		p3 <- ggplot(segment(output[[3]])) +   geom_segment(aes(x=x, y=y, xend=xend, yend=yend)) +   coord_flip() + theme_none + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + theme(plot.margin=unit(c(0.15,1,-0.6,0), "cm"), panel.margin=unit(c(0,0,0,0), "cm"))
 	
@@ -703,7 +712,7 @@ shinyServer(function(input, output) {
 
 	p <- ggplot(df,aes(x = x,y = y, colour = factor(z)))
 	
-	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), axis.text.x = element_text(vjust = 2), axis.title.y=element_text(vjust=1),legend.key.size = unit(1.75, "lines")) + scale_colour_discrete(name = "Clusters")	
+	p <- p + geom_point(size = 5) + xlab('First Dimension') + ylab('Second Dimension') + theme(plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), axis.text.x = element_text(vjust = 2), axis.title.y=element_text(vjust=1),legend.key.size = unit(1.75, "lines")) + scale_colour_discrete(name = "Clusters") + ggtitle('Embedding')
 	
    }
   #Pushes the marginal plots to the UI
