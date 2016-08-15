@@ -103,14 +103,17 @@ shinyServer(function(input, output) {
 		}
 		 
 		#Drop character columns in primary output. Note that we converted 
-		data_with_factors <- df
 		f_indi <- which(dataTypes == "character")	
+		data_with_factors <- df	
 		if(length(f_indi) > 0) {
-			df <- df[,-f_indi]
+			df <- signif(df[,-f_indi],3)
 			dataTypes <- dataTypes[-f_indi]
 		}
+		else{
+			df <- signif(df,3)
+		}
+		data_with_factors[,-f_indi] <- signif(data_with_factors[,-f_indi],3)
 		
-		#
 		data <- list(df,data_with_factors,f_indi)
 		
 	})
@@ -122,7 +125,7 @@ shinyServer(function(input, output) {
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-				clean_data <- clean_data[-show_outliers$Rows]
+				clean_data <- clean_data[-show_outliers$Rows,]
 			}
 		} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
@@ -296,7 +299,7 @@ shinyServer(function(input, output) {
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-				clean_data <- clean_data[-show_outliers$Rows]
+				clean_data <- clean_data[-show_outliers$Rows,]
 			}
 		} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
@@ -363,10 +366,10 @@ shinyServer(function(input, output) {
 		if (length(retained_variance) == 0){
 			df <- data.frame(x = NULL,y = NULL)
 		} else{
-			df <- data.frame(x = c(1:length(retained_variance)), y = retained_variance)
+			df <- data.frame(x = as.factor(c(1:length(retained_variance))), y = retained_variance)
 		}
 	
-		p <- ggplot(df, aes(x = x,y = y)) + xlab('Retained Dimensions') + ylab('Explained Variance') + ggtitle('Scree Plot')
+		p <- ggplot(df, aes(x = x,y = y,group = 1)) + xlab('Retained Dimensions') + ylab('Explained Variance') + ggtitle('Scree Plot')
 		p <- p + geom_point() + geom_line() + theme(plot.title = element_text(vjust=2), text = element_text(size=20), axis.text.x=element_text(angle=45), axis.title.y=element_text(vjust=1))	
 	})
 	
@@ -498,6 +501,13 @@ shinyServer(function(input, output) {
 	
 	if(input$marginal_condition_classes){
 		data <- cbind(data,Class = factor(my_data()[[2]][row_sel(),col_class()]))#Check this
+		unique_classes <- unique(data$Class)
+		class_current_mean <- rep(NA, length(unique_classes)) 
+		class_current_median <- rep(NA, length(unique_classes)) 
+		for (i in c(1:length(unique_classes))){
+			class_current_mean[i] <- mean(data[which(data$Class == unique_classes[i]),current_column])
+			class_current_median[i] <- median(data[which(data$Class == unique_classes[i]),current_column])
+		}
 		aes_set <- aes_q(x = as.name(name), color = as.name('Class'), fill = as.name('Class'))#This looks wrong	
 		if (type == "hist"){
 			p <- ggplot(data, aes_set) + geom_histogram(alpha = 0.2) + ylab('Counts')
@@ -522,11 +532,23 @@ shinyServer(function(input, output) {
 	p <- p + theme_offset + ggtitle("Marginal Distribution") + theme(text = element_text(size=25), legend.text = element_text(size=25), legend.title = element_text(size=25), legend.key.size = unit(1.75, "lines"))
 	
 	if(input$marginal_mean){
-		p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(size = 8, x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.65)		
+		if(input$marginal_condition_classes){
+			for (i in c(1:length(unique_classes))){
+				p <- p + geom_vline(xintercept = class_current_mean[i], color = "steelblue") +  geom_text(size = 8, x= class_current_mean[i], label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.65)	
+			}
+		} else{
+			p <- p + geom_vline(xintercept = current_mean, color = "steelblue") +  geom_text(size = 8, x= current_mean, label="Mean", y = 0, colour="steelblue", angle=90, vjust=-0.4, hjust=-2.65)	
+		}
 	}
 	
 	if(input$marginal_median){
-		p <- p + geom_vline(xintercept = current_median, color = "red") +  geom_text(size = 8,x = current_median , label="Median", y = 0 , colour="red", angle=90, vjust=-0.4, hjust=-2)
+		if(input$marginal_condition_classes){
+			for (i in c(1:length(unique_classes))){
+				p <- p + geom_vline(xintercept = class_current_median[i], color = "red") +  geom_text(size = 8,x = class_current_median[i] , label="Median", y = 0 , colour="red", angle=90, vjust=-0.4, hjust=-2)
+			}
+		} else{
+			p <- p + geom_vline(xintercept = current_median, color = "red") +  geom_text(size = 8,x = current_median , label="Median", y = 0 , colour="red", angle=90, vjust=-0.4, hjust=-2)
+		}
 	}
 	
 	p
@@ -542,11 +564,14 @@ shinyServer(function(input, output) {
 		
 		if(dim(data)[2] > 100){
 			cov_out <- covOGK(data,sigmamu = scaleTau2)
+			mahalanobis_dist <- cov_out$distances
 		} else{
 			cov_out <- covMcd(data)
+			mahalanobis_dist <- cov_out$mah
 		}
 		
-		mahalanobis_dist <- mahalanobis(data,cov_out$center,cov_out$cov,tol=1e-20)
+		
+		mahalanobis_dist
 	}
 	
 	cutoff <- qchisq(1 - cutoff_in / 100, dim(data)[2], ncp = 0, lower.tail = TRUE, log.p = FALSE)
@@ -557,10 +582,10 @@ shinyServer(function(input, output) {
 		Class <- as.data.frame(factor(my_data()[[2]][row_sel(),col_class()]))
 		df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier, Class = Class)
 		colnames(df_outliers) <<- c('x','y','z','Class')
-		p <- ggplot(df_outliers,aes(x = x,y = y, color = z, shape = Class))
+		p <- ggplot(df_outliers,aes(x = x,y = y, color = Class, shape = z)) + scale_shape_manual(name="Type", values = c("FALSE" = 16,"TRUE" = 17),labels=c("Outlier", "Inlier"), breaks=c("TRUE", "FALSE"))
 	} else{
 		df_outliers <<- data.frame(x = c(1:dim(data)[1]), y = log(sqrt(mahalanobis_dist)), z = outlier)
-		p <- ggplot(df_outliers,aes(x = x,y = y, colour = z))
+		p <- ggplot(df_outliers,aes(x = x,y = y, colour = z)) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
 	}
 	
 	
@@ -569,7 +594,7 @@ shinyServer(function(input, output) {
 	show_outliers$Distances <- mahalanobis_dist[df_outliers[,3]]
 	
 	
-	p <- p + geom_point(size = 3) + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Mahalanobis Distances)", title = paste("Outlier Plot")) + scale_colour_manual(name="Type", values = c("FALSE" = "blue","TRUE" = "#FF0080"), breaks=c("TRUE", "FALSE"), labels=c("Outlier", "Inlier"))	
+	p <- p + geom_point(size = 3) + geom_abline(intercept = log(sqrt(cutoff)), slope = 0,linetype="dashed",colour = "red") + labs(x = "Observation Number",y = "log(Robust Distances)", title = paste("Outlier Plot")) 
 	
 	p <- p + theme(axis.title.y=element_text(vjust=1),plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), legend.key.size = unit(1.75, "lines"))
 	
@@ -583,7 +608,7 @@ shinyServer(function(input, output) {
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-				clean_data <- clean_data[-show_outliers$Rows]
+				clean_data <- clean_data[-show_outliers$Rows,]
 			}
 		} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
@@ -645,7 +670,7 @@ shinyServer(function(input, output) {
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 			} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-				clean_data <- clean_data[-show_outliers$Rows]
+				clean_data <- clean_data[-show_outliers$Rows,]
 			}
 		} else{
 				clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
@@ -817,7 +842,7 @@ shinyServer(function(input, output) {
 			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
 		} else{
 			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
-			clean_data <- clean_data[-show_outliers$Rows]
+			clean_data <- clean_data[-show_outliers$Rows,]
 		}
 	} else{
 			clean_data <- my_data()[[1]][unlist(row_sel()),unlist(col_sel())]
