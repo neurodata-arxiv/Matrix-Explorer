@@ -728,6 +728,10 @@ shinyServer(function(input, output) {
 	}
 	
 	p <- p + theme(plot.title = element_text(vjust=2), text = element_text(size=25), legend.text = element_text(size=25), axis.text.x=element_text(angle=45, vjust = 0.6),axis.text.y=element_text(vjust = 1),legend.key.size = unit(1.75, "lines")) + coord_cartesian(ylim = ranges$y)
+	
+	if (input$featuresummaryx == TRUE){
+		p <- p + theme(axis.text.x=element_blank())
+	}
   }
   
   #Generate the 2D embedding and clustering plots as well as the scree plot.

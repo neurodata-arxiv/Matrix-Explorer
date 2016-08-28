@@ -148,7 +148,8 @@ shinyUI(navbarPage("MX:Matrix Explorer", id = "tabs",
 			list("Raw Data" = "raw_mean", 
 			 "R-scores" = "rscores_mean")),
 	hr(),
-	checkboxInput('colorfeature','Color based on class?',FALSE)			 
+	checkboxInput('colorfeature','Color based on class?',FALSE),
+	checkboxInput('featuresummaryx','Hide x axis tick labels?',FALSE)		
 	),
   mainPanel(
     plotOutput("Mean_o", height = "800px", dblclick = "plot1_dblclick",
